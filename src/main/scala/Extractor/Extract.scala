@@ -52,7 +52,6 @@ object Extract {
     Iterator(root)
   }
 
-  def unwrapRoots(root:Iterator[JsonExtractionRoot]): JsonExtractionRoot = return root.next()
 
   def combineAllRoots(r1:JsonExtractionRoot,r2:JsonExtractionRoot): JsonExtractionRoot = {
     r2.attributes.foreach{case(name,attribute) => {
