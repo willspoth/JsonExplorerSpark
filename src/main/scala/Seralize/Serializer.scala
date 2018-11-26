@@ -5,7 +5,7 @@ import com.google.gson.Gson
 import scala.collection.JavaConverters._
 
 
-object Seralizer {
+object Serializer {
 
   /** Preforms the initial serialization step
     * This dataframe is then cached and can be used during clustering for correlation
@@ -13,7 +13,7 @@ object Seralizer {
     *
     */
 
-  def seralize(rows: Iterator[String]): Iterator[JsonExplorerType] = {
+  def serialize(rows: Iterator[String]): Iterator[JsonExplorerType] = {
     val StringClass = classOf[String]
     val DoubleClass = classOf[java.lang.Double]
     val BooleanClass = classOf[java.lang.Boolean]
@@ -111,8 +111,6 @@ object Seralizer {
       }}
 
       return JE_Array(local_objs.toList)
-
-
     }
 
     while(rows.hasNext){

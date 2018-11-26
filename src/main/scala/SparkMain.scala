@@ -1,7 +1,11 @@
-import Extractor.ExtractorPhase
-import Seralize.{Seralizer, SimpleSeralizer}
+import Explorer.{JE_Array, JE_Numeric, JE_Object, JE_String}
+import Extractor.{Extract, ExtractorPhase}
+import Seralize.{LastSeralizer, Serializer, SimpleSeralizer}
 import com.google.gson.Gson
 import org.apache.spark.{SparkConf, SparkContext}
+import org.json4s.jackson.Json
+
+import scala.collection.mutable.ListBuffer
 
 object SparkMain {
 
@@ -14,21 +18,38 @@ object SparkMain {
 
   def main(args: Array[String]) = {
 
+    //println(JE_Object(Map("i"->JE_String)).equals(JE_Object(Map("i"->JE_Numeric))))
 
+    //println(JE_Array(List(JE_String,JE_Numeric)).equals(JE_Array(List(JE_String,JE_Numeric))))
+    /*
+    val m = scala.collection.mutable.HashMap[ListBuffer[Any],Int]()
+    m.put(ListBuffer("A","B",0),1)
+    m.put(ListBuffer("A","B",1),1)
+
+    m.put(ListBuffer("A","B",0),m.get(ListBuffer("A","B",0)).get + 1)
+
+    println(m)
+    ???
+    */
     val startTime = System.currentTimeMillis() // Start timer
 
     val dataset: String = "yelp"
 
     val conf = new SparkConf().set("spark.driver.maxResultSize", "4g").set("spark.driver.memory", "4g").set("spark.executor.memory", "4g")
-      .setMaster("local[*]").setAppName("JSON Typing")
+      .setMaster("local").setAppName("JSON Typing")
     val spark = new SparkContext(conf)
 
+    val inputLocation = args(0)
 
-    val records = spark.textFile(dataList.get(dataset).get._1)
+
+    val records = spark.textFile(inputLocation)
     val typeMap = records
       .filter(x => (x.size > 0 && x.charAt(0).equals('{'))) // filter out lines that aren't Json
-      //.mapPartitions(x=> Seralizer.seralize(x)).collect()
-        .mapPartitions(x=>Seralizer.seralize(x)).m
+      .mapPartitions(x=> Serializer.serialize(x)) // serialize output
+      .mapPartitions(x=> Extract.ExtractAttributes(x)).map(Extract.unwrapRoots(_)).reduce(Extract.combineAllRoots(_,_)) // extraction phase
+      .collect()
+      //  .map(x=>SimpleSeralizer.seralize(x)).reduce(Extract.createTypes(_,_))
+        //.mapPartitions(x=>LastSeralizer.seralize(x)).collect()
 
 
       //.mapPartitions(x=> ExtractorPhase.mapTypes(x))

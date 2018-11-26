@@ -1,6 +1,10 @@
 package Explorer
 
+
+
 sealed trait JsonExplorerType {
+  def getType():JsonExplorerType
+
   def id(t: JsonExplorerType): Int = {
     t match {
       case JE_Null => return 0
@@ -18,11 +22,34 @@ sealed trait JsonExplorerType {
   }
 }
 
-case object JE_Null extends JsonExplorerType
-case object JE_String extends JsonExplorerType
-case object JE_Numeric extends JsonExplorerType
-case object JE_Boolean extends JsonExplorerType
-case object JE_Array extends JsonExplorerType
+
+// used in the extraction phase, this holds information of every type
+case class Attribute() {
+  var name: scala.collection.mutable.ListBuffer[Any] = null
+  val types: scala.collection.mutable.HashMap[JsonExplorerType,Int] = scala.collection.mutable.HashMap[JsonExplorerType,Int]()
+  var typeEntropy: Option[Double] = None
+  var keySpaceEntropy: Option[Double] = None
+}
+
+case class JsonExtractionRoot() {
+  val attributes: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute] = scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute]()
+}
+
+case object JE_Null extends JsonExplorerType {
+  def getType: JsonExplorerType = JE_Null
+}
+case object JE_String extends JsonExplorerType {
+  def getType: JsonExplorerType = JE_String
+}
+case object JE_Numeric extends JsonExplorerType {
+  def getType: JsonExplorerType = JE_Numeric
+}
+case object JE_Boolean extends JsonExplorerType {
+  def getType: JsonExplorerType = JE_Boolean
+}
+case object JE_Array extends JsonExplorerType {
+  def getType: JsonExplorerType = JE_Array
+}
 case class JE_Array(xs:List[JsonExplorerType]) extends JsonExplorerType {
   def apply[A](xs: A*): List[A] = xs.toList
 
@@ -31,9 +58,16 @@ case class JE_Array(xs:List[JsonExplorerType]) extends JsonExplorerType {
       return Some(arg.asInstanceOf[List[JsonExplorerType]])
     else return None
   }
+
+  def getType: JsonExplorerType = JE_Array
+
 }
-case object JE_Empty_Array extends JsonExplorerType
-case object JE_Object extends JsonExplorerType
+case object JE_Empty_Array extends JsonExplorerType {
+  def getType: JsonExplorerType = JE_Empty_Array
+}
+case object JE_Object extends JsonExplorerType {
+  def getType: JsonExplorerType = JE_Object
+}
 case class JE_Object(xs:Map[String,JsonExplorerType]) extends JsonExplorerType {
 
   def unapply(arg: JE_Object): Option[Map[String,JE_Object]] = {
@@ -41,10 +75,18 @@ case class JE_Object(xs:Map[String,JsonExplorerType]) extends JsonExplorerType {
       return Some(arg.asInstanceOf[Map[String,JE_Object]])
     else return None
   }
+  def getType: JsonExplorerType = JE_Object
+
 }
-case object JE_Empty_Object extends JsonExplorerType
-case object JE_Tuple extends JsonExplorerType
-case object JE_Unknown extends JsonExplorerType
+case object JE_Empty_Object extends JsonExplorerType {
+  def getType: JsonExplorerType = JE_Empty_Object
+}
+case object JE_Tuple extends JsonExplorerType {
+  def getType: JsonExplorerType = JE_Tuple
+}
+case object JE_Unknown extends JsonExplorerType {
+  def getType: JsonExplorerType = JE_Unknown
+}
 final case class UnknownTypeException(private val message: String = "",
                                       private val cause: Throwable = None.orNull)
   extends Exception(message, cause)
