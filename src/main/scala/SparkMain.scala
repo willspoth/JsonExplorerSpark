@@ -50,8 +50,25 @@ object SparkMain {
 
     root.attributes.foreach{case(name,attribute) => {
       attribute.keySpaceEntropy = Some(keySpaceEntropy(attribute.types))
+      name.foldLeft(root.tree){case(tree,n) => {
+        tree.get(n) match {
+          case Some(opNode) =>
+            opNode match {
+              case Some(nod) =>
+                tree.get(n).get.get
+              case None =>
+                tree.put(n,Some(new node()))
+                tree.get(n).get.get
+            }
+          case None =>
+            tree.put(n,None)
+            tree
+        }
+      }}
+
     }}
     // now need to make operator tree
+
     // traverse tree depth first and retype
 
     // create list of split schemas

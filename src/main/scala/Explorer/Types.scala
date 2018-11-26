@@ -1,7 +1,6 @@
 package Explorer
 
 
-
 sealed trait JsonExplorerType {
   def getType():JsonExplorerType
 
@@ -23,6 +22,10 @@ sealed trait JsonExplorerType {
 }
 
 
+case class node() extends scala.collection.mutable.HashMap[Any,Option[node]] {
+
+}
+
 // used in the extraction phase, this holds information of every type
 case class Attribute() {
   var name: scala.collection.mutable.ListBuffer[Any] = null
@@ -31,8 +34,11 @@ case class Attribute() {
   var keySpaceEntropy: Option[Double] = None
 }
 
+
 case class JsonExtractionRoot() {
   val attributes: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute] = scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute]()
+  // None is a leaf
+  val tree: node = new node()
 }
 
 case object JE_Null extends JsonExplorerType {
@@ -99,3 +105,4 @@ object ParsingPrimitives {
   val ObjectClass = classOf[com.google.gson.internal.LinkedTreeMap[_,_]]
   val MapType = new java.util.HashMap[String,Object]().getClass
 }
+
