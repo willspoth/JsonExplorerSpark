@@ -3,22 +3,7 @@ package Explorer
 
 sealed trait JsonExplorerType {
   def getType():JsonExplorerType
-
-  def id(t: JsonExplorerType): Int = {
-    t match {
-      case JE_Null => return 0
-      case JE_String => return 1
-      case JE_Numeric => return 2
-      case JE_Boolean => return 3
-      case JE_Array(xs) => return 4
-      case JE_Array => return 4
-      case JE_Object(xs) => return 5
-      case JE_Object => return 5
-      case JE_Empty_Array => return 6
-      case JE_Empty_Object => return 7
-      case JE_Unknown => return 8
-    }
-  }
+  def id():Int
 }
 
 
@@ -39,22 +24,35 @@ case class JsonExtractionRoot() {
   val attributes: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute] = scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute]()
   // None is a leaf
   val tree: node = new node()
+  val schemas: scala.collection.mutable.ListBuffer[JsonExtractionSchema] = scala.collection.mutable.ListBuffer[JsonExtractionSchema]()
 }
+
+case class JsonExtractionSchema() {
+  val attributes: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute] = scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute]()
+  // None is a leaf
+  val tree: node = new node()
+}
+
 
 case object JE_Null extends JsonExplorerType {
   def getType: JsonExplorerType = JE_Null
+  def id: Int = 0
 }
 case object JE_String extends JsonExplorerType {
   def getType: JsonExplorerType = JE_String
+  def id: Int = 1
 }
 case object JE_Numeric extends JsonExplorerType {
   def getType: JsonExplorerType = JE_Numeric
+  def id: Int = 2
 }
 case object JE_Boolean extends JsonExplorerType {
   def getType: JsonExplorerType = JE_Boolean
+  def id: Int = 3
 }
 case object JE_Array extends JsonExplorerType {
   def getType: JsonExplorerType = JE_Array
+  def id: Int = 4
 }
 case class JE_Array(xs:List[JsonExplorerType]) extends JsonExplorerType {
   def apply[A](xs: A*): List[A] = xs.toList
@@ -66,13 +64,15 @@ case class JE_Array(xs:List[JsonExplorerType]) extends JsonExplorerType {
   }
 
   def getType: JsonExplorerType = JE_Array
-
+  def id: Int = 4
 }
 case object JE_Empty_Array extends JsonExplorerType {
   def getType: JsonExplorerType = JE_Empty_Array
+  def id: Int = 6
 }
 case object JE_Object extends JsonExplorerType {
   def getType: JsonExplorerType = JE_Object
+  def id: Int = 5
 }
 case class JE_Object(xs:Map[String,JsonExplorerType]) extends JsonExplorerType {
 
@@ -82,17 +82,54 @@ case class JE_Object(xs:Map[String,JsonExplorerType]) extends JsonExplorerType {
     else return None
   }
   def getType: JsonExplorerType = JE_Object
-
+  def id: Int = 5
 }
 case object JE_Empty_Object extends JsonExplorerType {
   def getType: JsonExplorerType = JE_Empty_Object
+  def id: Int = 7
 }
 case object JE_Tuple extends JsonExplorerType {
   def getType: JsonExplorerType = JE_Tuple
+  def id: Int = 8
 }
 case object JE_Unknown extends JsonExplorerType {
   def getType: JsonExplorerType = JE_Unknown
+  def id: Int = 9
 }
+// rewritten types after Explorer
+case object JE_Var_Object extends JsonExplorerType {
+  def getType: JsonExplorerType = JE_Var_Object
+  def id: Int = 11
+}
+case class JE_Var_Object(xs:Map[String,JsonExplorerType]) extends JsonExplorerType {
+
+  def unapply(arg: JE_Var_Object): Option[Map[String,JE_Var_Object]] = {
+    if(true)
+      return Some(arg.asInstanceOf[Map[String,JE_Var_Object]])
+    else return None
+  }
+  def getType: JsonExplorerType = JE_Var_Object
+  def id: Int = 11
+}
+case object JE_Obj_Array extends JsonExplorerType {
+  def getType: JsonExplorerType = JE_Obj_Array
+  def id: Int = 10
+}
+case class JE_Obj_Array(xs:List[JsonExplorerType]) extends JsonExplorerType {
+  def apply[A](xs: A*): List[A] = xs.toList
+
+  def unapply(arg: JE_Obj_Array): Option[List[JsonExplorerType]] = {
+    if(true)
+      return Some(arg.asInstanceOf[List[JsonExplorerType]])
+    else return None
+  }
+
+  def getType: JsonExplorerType = JE_Obj_Array
+  def id: Int = 10
+
+}
+
+
 final case class UnknownTypeException(private val message: String = "",
                                       private val cause: Throwable = None.orNull)
   extends Exception(message, cause)

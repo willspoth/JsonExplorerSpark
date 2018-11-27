@@ -5,7 +5,6 @@ import com.google.gson.Gson
 import org.apache.spark.{SparkConf, SparkContext}
 import org.json4s.jackson.Json
 
-import scala.collection.mutable.ListBuffer
 
 object SparkMain {
 
@@ -50,6 +49,7 @@ object SparkMain {
 
     root.attributes.foreach{case(name,attribute) => {
       attribute.keySpaceEntropy = Some(keySpaceEntropy(attribute.types))
+      // now need to make operator tree
       name.foldLeft(root.tree){case(tree,n) => {
         tree.get(n) match {
           case Some(opNode) =>
@@ -67,22 +67,32 @@ object SparkMain {
       }}
 
     }}
-    // now need to make operator tree
 
     // traverse tree depth first and retype
+    // nodes that don't pass
+    def rewriteRoot(tree: node, name: scala.collection.mutable.ListBuffer[Any]): Unit = {
+      tree.foreach{case(local_name,local_node) => {
+        local_node match {
+          case Some(temp) =>
+            // first call deeper, then check
+            rewriteRoot(temp, name :+ local_name)
+          case None => // check type, don't need to because leafs can't be obj arrays or var objects
+        }
+      }}
+      // now call children have been rewritten if needed, so can check this and return
+      val attribute = root.attributes.get(name).get
+      // check if it's a special type
+      attribute.types.foldLeft((true,true)){case((arrayofObjects,variableObject),(types,count)) => {
 
+        (arrayofObjects,variableObject)
+      }}
+    }
+
+    rewriteRoot(root.tree,scala.collection.mutable.ListBuffer[Any]())
     // create list of split schemas
     // create feature vectors from this list
 
     // run nmf and display results
-
-      //  .map(x=>SimpleSeralizer.seralize(x)).reduce(Extract.createTypes(_,_))
-        //.mapPartitions(x=>LastSeralizer.seralize(x)).collect()
-
-
-      //.mapPartitions(x=> ExtractorPhase.mapTypes(x))
-      //.groupByKey(ExtractorPhase.reduceTypes(_,_)).collect()
-      //.reduceByKey(ExtractorPhase.reduceTypes(_,_)).collect()
 
 
     val endTime = System.currentTimeMillis() // End Timer
