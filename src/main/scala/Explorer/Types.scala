@@ -7,9 +7,7 @@ sealed trait JsonExplorerType {
 }
 
 
-case class node() extends scala.collection.mutable.HashMap[Any,Option[node]] {
-
-}
+case class node() extends scala.collection.mutable.HashMap[Any,Option[node]] {}
 
 // used in the extraction phase, this holds information of every type
 case class Attribute() {
@@ -147,13 +145,4 @@ object ParsingPrimitives {
   val MapType = new java.util.HashMap[String,Object]().getClass
 }
 
-object TypeUtils {
-  def escalate(prev: JsonExplorerType, next: JsonExplorerType): JsonExplorerType = {
-    //(prev,next) match {
-    //  case () =>
-
-    //}
-    null
-  }
-
-}
+case object star
