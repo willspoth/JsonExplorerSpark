@@ -127,3 +127,28 @@ object StringSeralizer {
   }
 
 }
+
+
+/*
+
+    root.attributes.foreach{case(name,attribute) => {
+      attribute.keySpaceEntropy = Some(keySpaceEntropy(attribute.types))
+      // now need to make operator tree
+      name.foldLeft(root.tree){case(tree,n) => {
+        tree.get(n) match {
+          case Some(opNode) =>
+            opNode match {
+              case Some(nod) =>
+                tree.get(n).get.get
+              case None =>
+                tree.put(n,Some(new node()))
+                tree.get(n).get.get
+            }
+          case None =>
+            tree.put(n,None)
+            tree
+        }
+      }}
+
+    }}
+ */

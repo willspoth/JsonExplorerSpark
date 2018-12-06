@@ -14,6 +14,7 @@ case class node() extends scala.collection.mutable.HashMap[Any,Option[node]] {
 // used in the extraction phase, this holds information of every type
 case class Attribute() {
   var name: scala.collection.mutable.ListBuffer[Any] = null
+  var naiveType: JsonExplorerType = JE_Null
   val types: scala.collection.mutable.HashMap[JsonExplorerType,Int] = scala.collection.mutable.HashMap[JsonExplorerType,Int]()
   var typeEntropy: Option[Double] = None
   var keySpaceEntropy: Option[Double] = None
@@ -30,7 +31,8 @@ case class JsonExtractionRoot() {
 case class JsonExtractionSchema() {
   val attributes: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute] = scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute]()
   // None is a leaf
-  val tree: node = new node()
+  var tree: node = null
+  var parent: scala.collection.mutable.ListBuffer[Any] = null
 }
 
 
@@ -143,3 +145,13 @@ object ParsingPrimitives {
   val MapType = new java.util.HashMap[String,Object]().getClass
 }
 
+object TypeUtils {
+  def escalate(prev: JsonExplorerType, next: JsonExplorerType): JsonExplorerType = {
+    //(prev,next) match {
+    //  case () =>
+
+    //}
+    null
+  }
+
+}

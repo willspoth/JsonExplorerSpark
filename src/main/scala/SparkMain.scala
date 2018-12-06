@@ -13,7 +13,6 @@ object SparkMain {
     ("phonelab"->("test/data/carlDataSample.out",false)),("enron"->("test/data/enron.json",true)),("medicine"->("C:\\Users\\Will\\Documents\\GitHub\\JsonExplorer\\data\\medicine.json",true)),("meteorite"->("test/data/meteorite.json",false)),("test"->("test/data/testTypes.json",true))
     ,("citi"->("cleanJsonOutput/citiStations.json",true)),("weatherUG"->("cleanJsonOutput/WUG.json",true)),("github"->("jsonDatasets/github.json",true)))
 
-  val Gson = new Gson()
 
   def main(args: Array[String]) = {
 
@@ -39,6 +38,7 @@ object SparkMain {
     val spark = new SparkContext(conf)
 
     val inputLocation = args(0)
+    val KSE_Threshold: Double = 2.0
 
 
     val records = spark.textFile(inputLocation)
@@ -51,6 +51,7 @@ object SparkMain {
       attribute.keySpaceEntropy = Some(keySpaceEntropy(attribute.types))
       // now need to make operator tree
       name.foldLeft(root.tree){case(tree,n) => {
+
         tree.get(n) match {
           case Some(opNode) =>
             opNode match {
@@ -61,12 +62,13 @@ object SparkMain {
                 tree.get(n).get.get
             }
           case None =>
-            tree.put(n,None)
-            tree
+            tree.put(n,Some(new node()))
+            tree.get(n).get.get
         }
       }}
 
     }}
+
 
     // traverse tree depth first and retype
     // nodes that don't pass
@@ -74,21 +76,99 @@ object SparkMain {
       tree.foreach{case(local_name,local_node) => {
         local_node match {
           case Some(temp) =>
+            if(!temp.isEmpty)
             // first call deeper, then check
             rewriteRoot(temp, name :+ local_name)
           case None => // check type, don't need to because leafs can't be obj arrays or var objects
         }
       }}
       // now call children have been rewritten if needed, so can check this and return
+      if(name.isEmpty)
+        return
       val attribute = root.attributes.get(name).get
       // check if it's a special type
-      attribute.types.foldLeft((true,true)){case((arrayofObjects,variableObject),(types,count)) => {
-
-        (arrayofObjects,variableObject)
+      val arrayOfObjects: Boolean = attribute.types.foldLeft(true){case(arrayofObjects,(types,count)) => {
+        types.getType() match {
+          case JE_Array(xs) => isArrayOfObjects(xs) && arrayofObjects
+          case JE_Obj_Array(xs) => isArrayOfObjects(xs) && arrayofObjects
+          case JE_Empty_Array | JE_Null => arrayofObjects
+          case _ => false
+        } // end match
       }}
+      // check if it's an array of objects
+      if(arrayOfObjects) {
+        attribute.naiveType = JE_Obj_Array
+      } else if(attribute.keySpaceEntropy.get > KSE_Threshold) {
+        if(attribute.types.foldLeft(true){case(varObject,(types,count)) => {
+          types.getType() match {
+            case JE_Object | JE_Null | JE_Empty_Object => varObject
+            case _ => false
+          }
+        }})
+        attribute.naiveType = JE_Var_Object
+      }
+
     }
 
     rewriteRoot(root.tree,scala.collection.mutable.ListBuffer[Any]())
+
+
+    // bottom up, if varObj or arrayOfObj then separate into new schema unless parent is an array
+
+    def getChildren(tree: node, collector: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute], name: scala.collection.mutable.ListBuffer[Any]): Unit = {
+      tree.foreach{case(local_name,local_node) => {
+        local_node match {
+          case Some(temp) =>
+            if(!temp.isEmpty)
+              getChildren(temp, collector, name :+ local_name)
+        }
+      }}
+      collector.put(name,root.attributes.get(name).get)
+    }
+
+    def pullOutNode(tree: node, name: scala.collection.mutable.ListBuffer[Any]): Unit = {
+      val jes = new JsonExtractionSchema()
+      jes.tree = tree
+      jes.parent = name
+      getChildren(tree, jes.attributes, name)
+      root.schemas += jes
+    }
+
+
+    def separateSchemas(tree: node, name: scala.collection.mutable.ListBuffer[Any]): Boolean = {
+      tree.foreach{case(local_name,local_node) => {
+        local_node match {
+          case Some(temp) =>
+            if(!temp.isEmpty) {
+              // first call deeper, then check
+              if(separateSchemas(temp, name :+ local_name)){
+                if(!name.isEmpty){
+                  root.attributes.get(name).get.naiveType match {
+                    case JE_Var_Object | JE_Obj_Array => // do nothing because parent will handle it
+                    case _ => pullOutNode(tree.get(local_name).get.get,name :+ local_name)
+                  }
+                } else {
+                  pullOutNode(tree.get(local_name).get.get,name :+ local_name)
+                }
+              }
+            }
+          case None => // check type, don't need to because leafs can't be obj arrays or var objects
+        }
+      }}
+
+      if(name.isEmpty)
+        return false
+      val attribute = root.attributes.get(name).get
+      attribute.naiveType match {
+        case JE_Var_Object | JE_Obj_Array => return true
+        case _ => return false
+      }
+
+    }
+
+    separateSchemas(root.tree,scala.collection.mutable.ListBuffer[Any]())
+
+
     // create list of split schemas
     // create feature vectors from this list
 
@@ -119,6 +199,16 @@ object SparkMain {
       return entropy
     else
       return -1.0 * entropy
+  }
+
+
+  def isArrayOfObjects(xs:List[JsonExplorerType]): Boolean = {
+    (xs.foldLeft(true){case(bool,x) => { // with only objects for children
+      x.getType() match {
+        case JE_Object| JE_Var_Object | JE_Obj_Array | JE_Null | JE_Empty_Object | JE_Empty_Array => bool
+        case _ => false
+      }
+    }} && xs.size > 0)
   }
 
 /*
