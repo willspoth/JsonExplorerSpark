@@ -47,10 +47,10 @@ object SparkMain {
       .mapPartitions(x => Serializer.serialize(x)) // serialize output
       .mapPartitions(x => Extract.ExtractAttributes(x)).reduce(Extract.combineAllRoots(_,_)) // extraction phase
 
-    root.attributes.foreach{case(name,attribute) => {
+    root.AllAttributes.foreach{case(name,attribute) => {
       attribute.keySpaceEntropy = Some(keySpaceEntropy(attribute.types))
       // now need to make operator tree
-      name.foldLeft(root.tree){case(tree,n) => {
+      name.foldLeft(root.GrandTree){case(tree,n) => {
 
         tree.get(n) match {
           case Some(opNode) =>
@@ -85,7 +85,7 @@ object SparkMain {
       // now call children have been rewritten if needed, so can check this and return
       if(name.isEmpty)
         return
-      val attribute = root.attributes.get(name).get
+      val attribute = root.AllAttributes.get(name).get
       // check if it's a special type
       val arrayOfObjects: Boolean = attribute.types.foldLeft(true){case(arrayofObjects,(types,count)) => {
         types.getType() match {
@@ -110,7 +110,7 @@ object SparkMain {
 
     }
 
-    rewriteRoot(root.tree,scala.collection.mutable.ListBuffer[Any]())
+    rewriteRoot(root.GrandTree,scala.collection.mutable.ListBuffer[Any]())
 
 
     // bottom up, if varObj or arrayOfObj then separate into new schema unless parent is an array
@@ -123,7 +123,7 @@ object SparkMain {
               getChildren(temp, collector, name :+ local_name)
         }
       }}
-      collector.put(name,root.attributes.get(name).get)
+      collector.put(name,root.AllAttributes.get(name).get)
     }
 
     def pullOutNode(tree: node, name: scala.collection.mutable.ListBuffer[Any]): Unit = {
@@ -132,8 +132,15 @@ object SparkMain {
       jes.parent = name
       getChildren(tree, jes.attributes, name)
       root.schemas += jes
+
+      jes.attributes.foreach{case(n,a) => root.localAttributes.remove(n)}
+      root.computationTree = buildNodeTree(root.localAttributes)
     }
 
+
+    /*
+
+     */
 
     def separateSchemas(tree: node, name: scala.collection.mutable.ListBuffer[Any]): Boolean = {
       tree.foreach{case(local_name,local_node) => {
@@ -143,7 +150,7 @@ object SparkMain {
               // first call deeper, then check
               if(separateSchemas(temp, name :+ local_name)){
                 if(!name.isEmpty){
-                  root.attributes.get(name).get.naiveType match {
+                  root.AllAttributes.get(name).get.naiveType match {
                     case JE_Var_Object | JE_Obj_Array => // do nothing because parent will handle it
                     case _ => pullOutNode(tree.get(local_name).get.get,name :+ local_name)
                   }
@@ -158,7 +165,7 @@ object SparkMain {
 
       if(name.isEmpty)
         return false
-      val attribute = root.attributes.get(name).get
+      val attribute = root.AllAttributes.get(name).get
       attribute.naiveType match {
         case JE_Var_Object | JE_Obj_Array => return true
         case _ => return false
@@ -166,8 +173,16 @@ object SparkMain {
 
     }
 
-    separateSchemas(root.tree,scala.collection.mutable.ListBuffer[Any]())
+    root.computationTree = buildNodeTree(root.AllAttributes)
+    root.localAttributes = root.AllAttributes
+    separateSchemas(root.computationTree,scala.collection.mutable.ListBuffer[Any]())
 
+    // this is the main schema, adding it as a convenience, this way root.schemas captures all the required information
+    val mainSchema = new JsonExtractionSchema()
+    root.localAttributes.foreach{case(n,a) => mainSchema.attributes.put(n,a)}
+    mainSchema.parent = new scala.collection.mutable.ListBuffer[Any]
+    mainSchema.tree = buildNodeTree(mainSchema.attributes)
+    root.schemas.prepend(mainSchema)
 
     // create list of split schemas
     // create feature vectors from this list
@@ -209,6 +224,31 @@ object SparkMain {
         case _ => false
       }
     }} && xs.size > 0)
+  }
+
+  def buildNodeTree(attributes: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute]): node = {
+    val tree = new node()
+    attributes.foreach{case(name,attribute) => {
+      // now need to make operator tree
+      name.foldLeft(tree){case(tree,n) => {
+
+        tree.get(n) match {
+          case Some(opNode) =>
+            opNode match {
+              case Some(nod) =>
+                tree.get(n).get.get
+              case None =>
+                tree.put(n,Some(new node()))
+                tree.get(n).get.get
+            }
+          case None =>
+            tree.put(n,Some(new node()))
+            tree.get(n).get.get
+        }
+      }}
+
+    }}
+    return tree
   }
 
 /*

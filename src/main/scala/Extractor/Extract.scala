@@ -8,7 +8,7 @@ object Extract {
 
     // helper function to update root
     def add(name: scala.collection.mutable.ListBuffer[Any], j: JsonExplorerType): Unit = {
-      root.attributes.get(name) match {
+      root.AllAttributes.get(name) match {
         case Some(a) =>
           a.types.get(j) match {
             case Some(x) => a.types.put(j, x + 1)
@@ -19,7 +19,7 @@ object Extract {
           val a = Attribute()
           a.name = name
           a.types.put(j, 1)
-          root.attributes.put(name, a)
+          root.AllAttributes.put(name, a)
       }
     }
 
@@ -54,15 +54,15 @@ object Extract {
 
 
   def combineAllRoots(r1:JsonExtractionRoot,r2:JsonExtractionRoot): JsonExtractionRoot = {
-    r2.attributes.foreach{case(name,attribute) => {
-      r1.attributes.get(name) match {
+    r2.AllAttributes.foreach{case(name,attribute) => {
+      r1.AllAttributes.get(name) match {
         case Some(x) =>
           attribute.types.foreach{case(k,v) => {
             x.types.put(k,x.types.getOrElse(k,0)+v)
           }}
-          r1.attributes.put(name,x)
+          r1.AllAttributes.put(name,x)
         case None =>
-          r1.attributes.put(name,attribute)
+          r1.AllAttributes.put(name,attribute)
       }
     }}
     r1
