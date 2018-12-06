@@ -13,7 +13,7 @@ case class node() extends scala.collection.mutable.HashMap[Any,Option[node]] {}
 case class Attribute() {
   var name: scala.collection.mutable.ListBuffer[Any] = null
   var naiveType: JsonExplorerType = JE_Null
-  val types: scala.collection.mutable.HashMap[JsonExplorerType,Int] = scala.collection.mutable.HashMap[JsonExplorerType,Int]()
+  var types: scala.collection.mutable.HashMap[JsonExplorerType,Int] = scala.collection.mutable.HashMap[JsonExplorerType,Int]()
   var typeEntropy: Option[Double] = None
   var keySpaceEntropy: Option[Double] = None
 }
@@ -145,4 +145,4 @@ object ParsingPrimitives {
   val MapType = new java.util.HashMap[String,Object]().getClass
 }
 
-case object star
+case object Star

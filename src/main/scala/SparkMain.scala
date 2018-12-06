@@ -10,6 +10,7 @@ object SparkMain {
 
   def main(args: Array[String]) = {
 
+
     val startTime = System.currentTimeMillis() // Start timer
 
 
@@ -164,7 +165,39 @@ object SparkMain {
     mainSchema.tree = buildNodeTree(mainSchema.attributes)
     root.schemas.prepend(mainSchema)
 
-    // create list of split schemas
+/*
+    root.schemas.foreach(schema => {
+      schema.attributes.foreach{case(name,attr) => {
+        name.last match {
+          case i:Int => // this is an array with no children that are objects so truncate the array
+            schema.attributes.remove(name)
+          case _ =>
+        }
+      }}
+    })
+*/
+    root.schemas.foreach(schema => {
+      schema.attributes.foreach{case(name,attr) => {
+        val newName = name.map(n => {
+          n match {
+            case i:Int => Star
+            case _ => n
+          }
+        })
+        schema.attributes.remove(name)
+        schema.attributes.get(newName) match {
+          case Some(oldAttr) =>
+            val newAttribute = new Attribute
+            newAttribute.naiveType = oldAttr.naiveType // should change
+            newAttribute.name = newName
+            newAttribute.types = oldAttr.types ++ attr.types
+            newAttribute.keySpaceEntropy = oldAttr.keySpaceEntropy // should change
+            schema.attributes.put(newName,new Attribute)
+          case None =>
+            schema.attributes.put(newName,attr)
+        }
+      }}
+    })
     // create feature vectors from this list
 
     // run nmf and display results
