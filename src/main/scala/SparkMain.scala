@@ -76,10 +76,6 @@ object SparkMain {
       if(name.isEmpty)
         return
 
-      if(name.equals(scala.collection.mutable.ListBuffer[Any]("entities","media"))){
-        val donothing = true
-      }
-
       val attribute = root.AllAttributes.get(name).get
       // check if it's a special type
       val arrayOfObjects: Boolean = attribute.types.foldLeft(true){case(arrayofObjects,(types,count)) => {
@@ -119,7 +115,7 @@ object SparkMain {
             else {
               root.AllAttributes.get(name :+ local_name) match {
                 case Some(a) => collector.put(name :+ local_name, a)
-                case None => println(name :+ local_name)
+                case None => throw new Exception("Found attribute that is not known: "+(name :+ local_name).toString())
               }
 
             }
@@ -133,6 +129,7 @@ object SparkMain {
       val jes = new JsonExtractionSchema()
       jes.tree = tree
       jes.parent = name
+      jes.naiveType = root.AllAttributes.get(name).get.naiveType
       getChildren(tree, jes.attributes, name)
       root.schemas += jes
 
@@ -186,6 +183,7 @@ object SparkMain {
     root.localAttributes.foreach{case(n,a) => mainSchema.attributes.put(n,a)}
     mainSchema.parent = new scala.collection.mutable.ListBuffer[Any]
     mainSchema.tree = buildNodeTree(mainSchema.attributes)
+    mainSchema.naiveType = JE_Object
     root.schemas.prepend(mainSchema)
 
 /*
@@ -223,7 +221,8 @@ object SparkMain {
     })
     // create feature vectors from this list
 
-
+    val fvs = seralizedRecords.flatMap(FeatureVectorCreator.extractFVS(scala.collection.mutable.ListBuffer[Any](),root.schemas,_)).map(FeatureVectorCreator.addKey(_))
+      .groupByKey().collect()
 
 
     // run nmf and display results

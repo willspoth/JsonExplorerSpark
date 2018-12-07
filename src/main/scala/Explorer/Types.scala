@@ -6,6 +6,11 @@ sealed trait JsonExplorerType {
   def id():Int
 }
 
+case class FeatureVector(schema: JsonExtractionSchema) {
+  val parentName: scala.collection.mutable.ListBuffer[Any] = schema.parent
+  val Features: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Option[JsonExplorerType]] = schema.attributes.map{case(n,a) => (n, None)}
+  def updateFeature(n:scala.collection.mutable.ListBuffer[Any],t:JsonExplorerType): Unit = Features.put(n,Some(t))
+}
 
 case class node() extends scala.collection.mutable.HashMap[Any,Option[node]] {}
 
@@ -32,6 +37,7 @@ case class JsonExtractionSchema() {
   val attributes: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute] = scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute]()
   // None is a leaf
   var tree: node = null
+  var naiveType: JsonExplorerType = null
   var parent: scala.collection.mutable.ListBuffer[Any] = null
 }
 
