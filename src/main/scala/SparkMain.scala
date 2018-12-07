@@ -10,23 +10,32 @@ object SparkMain {
 
   def main(args: Array[String]) = {
 
+/*
+    val m = scala.collection.mutable.HashMap[Any,String]()
+    m.put(0,"0")
+    m.put(1,"1")
+    println(m.get(0).get)
+    scala.collection.mutable.ListBuffer[Any]("")
+*/
 
     val startTime = System.currentTimeMillis() // Start timer
 
 
     val conf = new SparkConf()//.set("spark.driver.maxResultSize", "4g").set("spark.driver.memory", "4g").set("spark.executor.memory", "4g")
-      .setMaster("local[*]").setAppName("JSON Typing")
+      .setMaster("local").setAppName("JSON Typing")
     val spark = new SparkContext(conf)
 
     val inputLocation = args(0)
-    val KSE_Threshold: Double = 2.0
+    val KSE_Threshold: Double = 10.0
 
 
     val records = spark.textFile(inputLocation)
-    val root = records
+    val seralizedRecords = records
       .filter(x => (x.size > 0 && x.charAt(0).equals('{'))) // filter out lines that aren't Json
       .mapPartitions(x => Serializer.serialize(x)) // serialize output
+    val root = seralizedRecords
       .mapPartitions(x => Extract.ExtractAttributes(x)).reduce(Extract.combineAllRoots(_,_)) // extraction phase
+
 
     root.AllAttributes.foreach{case(name,attribute) => {
       attribute.keySpaceEntropy = Some(keySpaceEntropy(attribute.types))
@@ -66,10 +75,15 @@ object SparkMain {
       // now call children have been rewritten if needed, so can check this and return
       if(name.isEmpty)
         return
+
+      if(name.equals(scala.collection.mutable.ListBuffer[Any]("entities","media"))){
+        val donothing = true
+      }
+
       val attribute = root.AllAttributes.get(name).get
       // check if it's a special type
       val arrayOfObjects: Boolean = attribute.types.foldLeft(true){case(arrayofObjects,(types,count)) => {
-        types.getType() match {
+        types match {
           case JE_Array(xs) => isArrayOfObjects(xs) && arrayofObjects
           case JE_Obj_Array(xs) => isArrayOfObjects(xs) && arrayofObjects
           case JE_Empty_Array | JE_Null => arrayofObjects
@@ -102,6 +116,14 @@ object SparkMain {
           case Some(temp) =>
             if(!temp.isEmpty)
               getChildren(temp, collector, name :+ local_name)
+            else {
+              root.AllAttributes.get(name :+ local_name) match {
+                case Some(a) => collector.put(name :+ local_name, a)
+                case None => println(name :+ local_name)
+              }
+
+            }
+
         }
       }}
       collector.put(name,root.AllAttributes.get(name).get)
@@ -114,6 +136,7 @@ object SparkMain {
       getChildren(tree, jes.attributes, name)
       root.schemas += jes
 
+      jes.attributes.remove(name)
       jes.attributes.foreach{case(n,a) => root.localAttributes.remove(n)}
       root.computationTree = buildNodeTree(root.localAttributes)
     }
@@ -155,9 +178,9 @@ object SparkMain {
     }
 
     root.computationTree = buildNodeTree(root.AllAttributes)
-    root.localAttributes = root.AllAttributes
+    root.AllAttributes.foreach{case(n,a) => root.localAttributes.put(n.clone(),a)}
     separateSchemas(root.computationTree,scala.collection.mutable.ListBuffer[Any]())
-
+    // ListBuffer(quoted_status, extended_entities, media, 0, video_info, variants, 2, bitrate)
     // this is the main schema, adding it as a convenience, this way root.schemas captures all the required information
     val mainSchema = new JsonExtractionSchema()
     root.localAttributes.foreach{case(n,a) => mainSchema.attributes.put(n,a)}
@@ -199,6 +222,9 @@ object SparkMain {
       }}
     })
     // create feature vectors from this list
+
+
+
 
     // run nmf and display results
 
