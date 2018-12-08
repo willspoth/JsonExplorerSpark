@@ -2,6 +2,7 @@ import Explorer._
 import Extractor.Extract
 import Seralize.Serializer
 import org.apache.spark.{HashPartitioner, SparkConf, SparkContext}
+import java.io._
 
 
 object SparkMain {
@@ -26,7 +27,7 @@ object SparkMain {
     val seralizedRecords = records
       .filter(x => (x.size > 0 && x.charAt(0).equals('{'))) // filter out lines that aren't Json
       .mapPartitions(x => Serializer.serialize(x)) // serialize output
-      .cache()
+      //.cache()
     val root = seralizedRecords
       .mapPartitions(x => Extract.ExtractAttributes(x)).reduce(Extract.combineAllRoots(_,_)) // extraction phase
 
@@ -125,7 +126,7 @@ object SparkMain {
       jes.parent = name
       jes.naiveType = root.AllAttributes.get(name).get.naiveType
       getChildren(tree, jes.attributes, name)
-      root.schemas += jes
+      root.schemas.put(jes.parent,jes)
 
       jes.attributes.remove(name)
       jes.attributes.foreach{case(n,a) => root.localAttributes.remove(n)}
@@ -178,7 +179,7 @@ object SparkMain {
     mainSchema.parent = new scala.collection.mutable.ListBuffer[Any]
     mainSchema.tree = buildNodeTree(mainSchema.attributes)
     mainSchema.naiveType = JE_Object
-    root.schemas.prepend(mainSchema)
+    root.schemas.put(mainSchema.parent,mainSchema)
 
 /*
     root.schemas.foreach(schema => {
@@ -191,7 +192,7 @@ object SparkMain {
       }}
     })
 */
-    root.schemas.foreach(schema => {
+    root.schemas.foreach{case(_,schema) => {
       schema.attributes.foreach{case(name,attr) => {
         val newName = name.map(n => {
           n match {
@@ -212,12 +213,34 @@ object SparkMain {
             schema.attributes.put(newName,attr)
         }
       }}
-    })
+    }}
     // create feature vectors from this list
 
-    val fvs = seralizedRecords.flatMap(FeatureVectorCreator.extractFVS(scala.collection.mutable.ListBuffer[Any](),root.schemas,_)).map(FeatureVectorCreator.addKey(_))
-      .groupByKey().map(x=>FeatureVectorCreator.collapseFVS(x._1,x._2)).saveAsTextFile("features")
+    val fvs = seralizedRecords.flatMap(FeatureVectorCreator.extractFVSs(root.schemas,_)).map(x=>{((x.parentName,x.libsvm),1)})
+      .reduceByKey(_+_).collect()
 
+    val fvDir = "FeatureVectors/"
+    val schemaWriters: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],(BufferedWriter,BufferedWriter)] = root.schemas.map{case(name,schema)=>{
+      val stringName = fvDir + Types.nameToFileString(name)
+      val schWriter = new BufferedWriter(new FileWriter(new File(stringName+".sch")))
+      schWriter.write(schema.attributes.map(x=>Types.nameToString(x._1)).mkString(","))
+      schWriter.close()
+
+      val fvWriter = new BufferedWriter(new FileWriter(new File(stringName+".features")))
+      val multWriter = new BufferedWriter(new FileWriter(new File(stringName+".mults")))
+      (name,(fvWriter,multWriter))
+    }}
+
+    fvs.foreach{case((name,fv),mult)=>{
+      val (fvWriter,multWriter) = schemaWriters.get(name).get
+      fvWriter.write(fv)
+      multWriter.write(mult)
+    }}
+
+    schemaWriters.foreach(x=> {
+      x._2._1.close()
+      x._2._2.close()
+    })
 
     // write fvs
     //fvs.foreach()

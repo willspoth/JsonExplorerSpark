@@ -2,17 +2,25 @@ package Explorer
 
 object FeatureVectorCreator {
 
+
+  def extractFVSs(schemas: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],JsonExtractionSchema], row: JsonExplorerType): scala.collection.mutable.ListBuffer[FeatureVector] = {
+    val fvs: scala.collection.mutable.ListBuffer[FeatureVector] = scala.collection.mutable.ListBuffer[FeatureVector]()
+    extractFVS(scala.collection.mutable.ListBuffer[Any](), schemas, row, fvs)
+
+    return fvs
+  }
+
+
   /*
     This is a recursive function that takes in a row(JE_Object) and returns a FeatureVector
    */
-  def extractFVS(prefix: scala.collection.mutable.ListBuffer[Any], schemas: scala.collection.mutable.ListBuffer[JsonExtractionSchema], row: JsonExplorerType): scala.collection.mutable.ListBuffer[FeatureVector] = {
+  def extractFVS(prefix: scala.collection.mutable.ListBuffer[Any], schemas: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],JsonExtractionSchema], row: JsonExplorerType, fvs: scala.collection.mutable.ListBuffer[FeatureVector]): Unit = {
 
-    val fvs: scala.collection.mutable.ListBuffer[FeatureVector] = scala.collection.mutable.ListBuffer[FeatureVector]()
 
     def containsName(name: scala.collection.mutable.ListBuffer[Any], except: scala.collection.mutable.ListBuffer[Any]): Boolean = {
       if(name.equals(except))
         return false
-      schemas.foldLeft(false){(col,s) => (s.parent.equals(name) || col)}
+      return schemas.contains(name)
     }
 
     def extract(name: scala.collection.mutable.ListBuffer[Any], jet: JsonExplorerType, fv: FeatureVector): Unit = {
@@ -20,7 +28,7 @@ object FeatureVectorCreator {
         case JE_String | JE_Numeric | JE_Boolean | JE_Null | JE_Empty_Array | JE_Empty_Object => fv.updateFeature(name,jet.id)
         case JE_Object(xs) =>
           if(containsName(name,fv.parentName)){ // this attribute is a separate
-            extractFVS(name, schemas, jet).foreach(i => fvs += i)
+            extractFVS(name, schemas, jet, fvs)
           } else { // name is not separate schema
             if(name.nonEmpty) {
               fv.updateFeature(name,JE_Object.id)
@@ -29,7 +37,7 @@ object FeatureVectorCreator {
           }
         case JE_Array(xs) =>
           if(containsName(name,fv.parentName)){ // this attribute is a separate
-            extractFVS(name, schemas, jet).foreach(i => fvs += i)
+            extractFVS(name, schemas, jet, fvs)
           } else {
             if (name.nonEmpty) {
               fv.updateFeature(name, JE_Array.id)
@@ -43,17 +51,17 @@ object FeatureVectorCreator {
     }
 
     def getSchema(name: scala.collection.mutable.ListBuffer[Any]): JsonExtractionSchema = {
-      schemas.foreach(s => {
-        if(s.parent.equals(name))
-          return s
-      })
-      null
+      schemas.get(name) match {
+        case Some(s) => s
+        case None => null
+      }
     }
 
     row match {
       case obj: JE_Object =>
         val fv: FeatureVector = new FeatureVector(getSchema(prefix))
         extract(prefix,obj,fv)
+        fv.libsvm = toLibSVMFormat(fv)
         fvs += fv
       case arr: JE_Array =>
         getSchema(prefix).naiveType match {
@@ -61,6 +69,7 @@ object FeatureVectorCreator {
             arr.xs.foreach(jet => {
               val fv: FeatureVector = new FeatureVector(getSchema(prefix))
               extract(prefix,jet,fv)
+              fv.libsvm = toLibSVMFormat(fv)
               fvs += fv
             })
           case _ => throw new Exception("Unexpected type in FVC.extractFVS: ")
@@ -71,7 +80,6 @@ object FeatureVectorCreator {
       case _ => throw new Exception("FeatureVectorCreator.extract expects a JE_Object type, found: " + row.getType())
     }
 
-    return fvs
   }
 
   def addKey(fv:FeatureVector): (scala.collection.mutable.ListBuffer[Any],String) = (fv.parentName,toLibSVMFormat(fv))

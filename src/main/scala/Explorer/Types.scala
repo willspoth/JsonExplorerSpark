@@ -9,6 +9,7 @@ sealed trait JsonExplorerType {
 case class FeatureVector(schema: JsonExtractionSchema) {
   val parentName: scala.collection.mutable.ListBuffer[Any] = schema.parent
   val Features: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Option[Int]] = schema.attributes.map{case(n,a) => (n, None)}
+  var libsvm: String = null
   var count: Int = 1
   def updateFeature(n:scala.collection.mutable.ListBuffer[Any],t:Int): Unit = Features.put(n,Some(t))
 }
@@ -31,7 +32,7 @@ case class JsonExtractionRoot() {
   // None is a leaf
   var computationTree: node = new node() // tree used for local computations and recursive calls
   val GrandTree: node = new node() // the main tree that expresses all objects and should not change
-  val schemas: scala.collection.mutable.ListBuffer[JsonExtractionSchema] = scala.collection.mutable.ListBuffer[JsonExtractionSchema]()
+  val schemas: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],JsonExtractionSchema] = scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],JsonExtractionSchema]()
 }
 
 case class JsonExtractionSchema() {
@@ -153,3 +154,37 @@ object ParsingPrimitives {
 }
 
 case object Star
+
+object Types {
+  def nameToString(name: scala.collection.mutable.ListBuffer[Any]): String = {
+    if(name.isEmpty)
+      return "root"
+    val nameString = name.foldLeft("")((acc,n)=>{
+      n match {
+        case s:String => acc + s + "."
+        case i: Int => acc + s"""[$i]"""
+        case Star => acc + s"""[*]"""
+      }
+    })
+    if(nameString.last.equals('.'))
+      return nameString.substring(0,nameString.size-1)
+    else
+      return nameString
+  }
+
+  def nameToFileString(name: scala.collection.mutable.ListBuffer[Any]): String = {
+    if(name.isEmpty)
+      return "root"
+    val nameString = name.foldLeft("")((acc,n)=>{
+      n match {
+        case s:String => acc + s + "_"
+        case i: Int => acc + s"""[$i]"""
+        case Star => acc + s"""[]"""
+      }
+    })
+    if(nameString.last.equals('_'))
+      return nameString.substring(0,nameString.size-1)
+    else
+      return nameString
+  }
+}
