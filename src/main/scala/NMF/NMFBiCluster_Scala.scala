@@ -4,6 +4,7 @@ import breeze.linalg._
 import breeze.numerics._
 import breeze.optimize.linear.NNLS
 import breeze.stats._
+import smile.data.SparseDataset
 import smile.read
 
 import scala.collection.mutable
@@ -18,7 +19,7 @@ class NMFBiCluster_Scala(val inputfile: String, val multfile: String) {
   var dataLabels = Array.range(-1,0)
 
   def getData(datapath: String, multpath: String): (DenseMatrix[Double], DenseVector[Double]) = {
-    val data = read.libsvm(inputfile)
+    val data: SparseDataset = read.libsvm(inputfile)
     val (dataMatrix_raw, l) = data.unzipInt
     val dataMatrix_smile = DenseMatrix(dataMatrix_raw:_*)
     //load multiplicity

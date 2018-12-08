@@ -1,7 +1,7 @@
 import Explorer._
 import Extractor.Extract
 import Seralize.Serializer
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.{HashPartitioner, SparkConf, SparkContext}
 
 
 object SparkMain {
@@ -10,29 +10,23 @@ object SparkMain {
 
   def main(args: Array[String]) = {
 
-/*
-    val m = scala.collection.mutable.HashMap[Any,String]()
-    m.put(0,"0")
-    m.put(1,"1")
-    println(m.get(0).get)
-    scala.collection.mutable.ListBuffer[Any]("")
-*/
 
     val startTime = System.currentTimeMillis() // Start timer
 
 
-    val conf = new SparkConf()//.set("spark.driver.maxResultSize", "4g").set("spark.driver.memory", "4g").set("spark.executor.memory", "4g")
-      .setMaster("local").setAppName("JSON Typing")
+    val conf = new SparkConf().set("spark.driver.maxResultSize", "4g").set("spark.driver.memory", "4g").set("spark.executor.memory", "4g")
+      .setMaster("local[*]").setAppName("JSON Typing")
     val spark = new SparkContext(conf)
 
     val inputLocation = args(0)
-    val KSE_Threshold: Double = 10.0
+    val KSE_Threshold: Double = 5.0
 
 
     val records = spark.textFile(inputLocation)
     val seralizedRecords = records
       .filter(x => (x.size > 0 && x.charAt(0).equals('{'))) // filter out lines that aren't Json
       .mapPartitions(x => Serializer.serialize(x)) // serialize output
+      .cache()
     val root = seralizedRecords
       .mapPartitions(x => Extract.ExtractAttributes(x)).reduce(Extract.combineAllRoots(_,_)) // extraction phase
 
@@ -222,8 +216,11 @@ object SparkMain {
     // create feature vectors from this list
 
     val fvs = seralizedRecords.flatMap(FeatureVectorCreator.extractFVS(scala.collection.mutable.ListBuffer[Any](),root.schemas,_)).map(FeatureVectorCreator.addKey(_))
-      .groupByKey().collect()
+      .groupByKey().map(x=>FeatureVectorCreator.collapseFVS(x._1,x._2)).saveAsTextFile("features")
 
+
+    // write fvs
+    //fvs.foreach()
 
     // run nmf and display results
 
