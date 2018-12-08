@@ -15,7 +15,7 @@ libraryDependencies ++= Seq(
   // NMF
   "com.github.haifengl" %% "smile-scala" % "1.5.1",
   "org.scalanlp" %% "breeze" % "0.13.2",
-  "com.github.fommil.netlib" % "all" % "1.1.2",
+  "com.github.fommil.netlib" % "all" % "1.1.2" pomOnly(),
 
   // Spark
   "org.apache.spark" %% "spark-core" % "2.3.2"
@@ -40,6 +40,7 @@ assemblyMergeStrategy in assembly := {
   case PathList("org", "slf4j", xs @ _*) => MergeStrategy.first
   case PathList("org", "codehaus", xs @ _*) => MergeStrategy.last
   case PathList("com", "googlecode", xs @ _*) => MergeStrategy.last
+  case PathList("org", "xmlpull", xs @ _*)           => MergeStrategy.discard
   case "overview.html" => MergeStrategy.rename
   case "about.html" => MergeStrategy.rename
   case "META-INF/ECLIPSEF.RSA" => MergeStrategy.last

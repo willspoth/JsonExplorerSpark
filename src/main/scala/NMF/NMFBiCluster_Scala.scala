@@ -4,7 +4,6 @@ import breeze.linalg._
 import breeze.numerics._
 import breeze.optimize.linear.NNLS
 import breeze.stats._
-import smile.data.SparseDataset
 import smile.read
 
 import scala.collection.mutable
@@ -19,7 +18,7 @@ class NMFBiCluster_Scala(val inputfile: String, val multfile: String) {
   var dataLabels = Array.range(-1,0)
 
   def getData(datapath: String, multpath: String): (DenseMatrix[Double], DenseVector[Double]) = {
-    val data: SparseDataset = read.libsvm(inputfile)
+    val data = read.libsvm(inputfile)
     val (dataMatrix_raw, l) = data.unzipInt
     val dataMatrix_smile = DenseMatrix(dataMatrix_raw:_*)
     //load multiplicity
@@ -46,7 +45,10 @@ class NMFBiCluster_Scala(val inputfile: String, val multfile: String) {
     val maxIter = 200
     val residualCoeff = 1e-4
     val tofCoeff = 1e-4
-    val refNorm = sqrt(sum(mult *:* mult) * r)
+
+    val weights = sqrt(mult)
+
+    val refNorm = sqrt(sum(weights *:* weights) * r)
     val residual = residualCoeff * refNorm
     val tof = tofCoeff * refNorm
 
@@ -54,7 +56,7 @@ class NMFBiCluster_Scala(val inputfile: String, val multfile: String) {
 
     val eps = 2.2204e-16
 
-    val Matrix = X(*, ::) * mult
+    val Matrix = X(*, ::) * weights
     if (k > 1) {
       val x = Array.ofDim[Double](c, r)
       for (i <- 0 until c) {
@@ -93,11 +95,16 @@ class NMFBiCluster_Scala(val inputfile: String, val multfile: String) {
           }
         }
       }
-      //normalize Y and A
-      Y = Y(*,::) / mult
+      //remove multiplicity info in Y
+      Y = Y(*,::) / weights
+      //      //normalize Y and A
+      //      val Norms = norm(A,Axis._0).t
+      //      A = A(*,::) / Norms
+      //      Y = Y(::,*) * Norms
       val Norms = max(A,Axis._0).t
+      Y = Y(::,*) * Norms
       A = A(*,::) / Norms
-      Y = Y(::,*) / Norms
+
       (A, Y, finalResidual)
     }
     else {
@@ -132,14 +139,18 @@ class NMFBiCluster_Scala(val inputfile: String, val multfile: String) {
           }
         }
       }
-      //normalize Y and A
-      Y = Y(*,::) / mult
+      //remove multiplicity info in Y
+      Y = Y(*,::) / weights
+      //      //normalize Y and A
+      //      val Norms = norm(A,Axis._0).t
+      //      A = A(*,::) / Norms
+      //      Y = Y(::,*) * Norms
       val Norms = max(A,Axis._0).t
+      Y = Y(::,*) * Norms
       A = A(*,::) / Norms
-      Y = Y(::,*) / Norms
+
       (A, Y, finalResidual)
     }
-
   }
 
   def NMFBiClustering(): (DenseMatrix[Double], DenseMatrix[Double], Double) = {
@@ -194,7 +205,7 @@ class NMFBiCluster_Scala(val inputfile: String, val multfile: String) {
     */
   def getFeatureOrder(): (Array[Int]) = {
     if (this.featureLabels(0) == -1)
-     this.featureLabels = hierarchicalClusteringSort(this.basisVectors)
+      this.featureLabels = hierarchicalClusteringSort(this.basisVectors)
 
     this.featureLabels
   }
@@ -213,33 +224,37 @@ class NMFBiCluster_Scala(val inputfile: String, val multfile: String) {
   }
 
   def hierarchicalClusteringSort(InputMatrix:DenseMatrix[Double]): Array[Int] = {
-    val x = Array.ofDim[Double](InputMatrix.rows,InputMatrix.cols)
-    for (i <- 0 until InputMatrix.rows) {
-      x(i) = InputMatrix(i,::).t.toArray
-    }
-    val clusters = smile.clustering.hclust(smile.util.pdist(x), "complete")
-    val labels = new Array[Int](InputMatrix.rows)
-    //interpret labels by merge dendrogram
-    val Tree = clusters.getTree
-    val stepMap:mutable.HashMap[Int, Array[Int]] =new mutable.HashMap[Int, Array[Int]]()
-    for (step <- 0 until Tree.length){
-      val children = Tree(step)
-      var ArrayLeft = new Array[Int](1)
-      if (children(0) < InputMatrix.rows)
-        ArrayLeft(0)=children(0)
-      else
-        ArrayLeft = stepMap(children(0)-InputMatrix.rows)
+    if (InputMatrix.rows>1) {
+      val x = Array.ofDim[Double](InputMatrix.rows, InputMatrix.cols)
+      for (i <- 0 until InputMatrix.rows) {
+        x(i) = InputMatrix(i, ::).t.toArray
+      }
+      val clusters = smile.clustering.hclust(smile.util.pdist(x), "complete")
+      val labels = new Array[Int](InputMatrix.rows)
+      //interpret labels by merge dendrogram
+      val Tree = clusters.getTree
+      val stepMap: mutable.HashMap[Int, Array[Int]] = new mutable.HashMap[Int, Array[Int]]()
+      for (step <- 0 until Tree.length) {
+        val children = Tree(step)
+        var ArrayLeft = new Array[Int](1)
+        if (children(0) < InputMatrix.rows)
+          ArrayLeft(0) = children(0)
+        else
+          ArrayLeft = stepMap(children(0) - InputMatrix.rows)
 
-      var ArrayRight = new Array[Int](1)
-      if (children(1) < InputMatrix.rows)
-        ArrayRight(0)=children(1)
-      else
-        ArrayRight = stepMap(children(1)-InputMatrix.rows)
+        var ArrayRight = new Array[Int](1)
+        if (children(1) < InputMatrix.rows)
+          ArrayRight(0) = children(1)
+        else
+          ArrayRight = stepMap(children(1) - InputMatrix.rows)
 
-      val ArrayMerge = ArrayLeft ++ ArrayRight
-      stepMap += (step -> ArrayMerge)
+        val ArrayMerge = ArrayLeft ++ ArrayRight
+        stepMap += (step -> ArrayMerge)
+      }
+      stepMap(InputMatrix.rows - 2)
     }
-    stepMap(InputMatrix.rows-2)
+    else
+      new Array[Int](1)
   }
 
   /**
@@ -280,29 +295,29 @@ class NMFBiCluster_Scala(val inputfile: String, val multfile: String) {
     }
     else {
       //if more than one layer
-       if (topLayerUniqueLabels.length > 1){
-         var largestLabelIDAssigned = labelStartValue-1
-         for (i <- 0 until topLayerUniqueLabels.length){
-           val labelID=topLayerUniqueLabels(i)
-           val indexes= (topLayerLabels :== labelID).activeKeysIterator.toIndexedSeq
-           val labelSpecific_I = I(indexes, 1 until numLayers).toDenseMatrix
-           val (labels_partitionSpecific,lID)=multiLayerSort(labelSpecific_I,largestLabelIDAssigned+1)
-           largestLabelIDAssigned=lID
-           labels(indexes) := labels_partitionSpecific
-         }
-         (labels,largestLabelIDAssigned)
-       }
-       else {
-         val largestLabelIDAssigned = labelStartValue
-         (labels,largestLabelIDAssigned)
-       }
+      if (topLayerUniqueLabels.length > 1){
+        var largestLabelIDAssigned = labelStartValue-1
+        for (i <- 0 until topLayerUniqueLabels.length){
+          val labelID=topLayerUniqueLabels(i)
+          val indexes= (topLayerLabels :== labelID).activeKeysIterator.toIndexedSeq
+          val labelSpecific_I = I(indexes, 1 until numLayers).toDenseMatrix
+          val (labels_partitionSpecific,lID)=multiLayerSort(labelSpecific_I,largestLabelIDAssigned+1)
+          largestLabelIDAssigned=lID
+          labels(indexes) := labels_partitionSpecific
+        }
+        (labels,largestLabelIDAssigned)
+      }
+      else {
+        val largestLabelIDAssigned = labelStartValue
+        (labels,largestLabelIDAssigned)
+      }
     }
   }
 
   def determineK(direction: Int): Int = {
     //PCA normalize and adjust by multiplicities
     var scores = PCANormalize(dataMatrix_smile, direction, multiplicities_smile)
-    //translate back to spark data frame
+    //translate back to smile data frame
     val x = Array.ofDim[Double](scores.rows, scores.cols)
     for (i <- 0 until scores.rows) {
       x(i) = scores(i, ::).t.toArray
@@ -314,10 +329,10 @@ class NMFBiCluster_Scala(val inputfile: String, val multfile: String) {
     val round =5
 
     for (i <- 2 until cap + 1) {
-        val clusters = smile.clustering.kmeans(x, i, runs = round)
-        val labels = clusters.getClusterLabel
-        val eval = evaluateCluster(labels, scores, i, clusters.getClusterSize, clusters.centroids(), "silhouette")
-        evals(i - 2) = eval
+      val clusters = smile.clustering.kmeans(x, i, runs = round)
+      val labels = clusters.getClusterLabel
+      val eval = evaluateCluster(labels, scores, i, clusters.getClusterSize, clusters.centroids(), "daviesbouldin")
+      evals(i - 2) = eval
     }
 
     val ind = argmax(evals)
@@ -358,31 +373,31 @@ class NMFBiCluster_Scala(val inputfile: String, val multfile: String) {
       }
 
       for ((label, i) <- labels.zipWithIndex) {
-          val M=myMap(label)
-          val c=countMap(label)
-          M(c,::) := x(i,::)
-          val cc = c+1
-          countMap += (label -> cc)
+        val M=myMap(label)
+        val c=countMap(label)
+        M(c,::) := x(i,::)
+        val cc = c+1
+        countMap += (label -> cc)
       }
       val S = DenseVector.zeros[Double](k)
       val centroidM = DenseMatrix(centroids:_*)
       for (i <- 0 until k){
-         val centroid = centroidM(i,::).t
-         val M = myMap(i)
-         val diffM = M(*,::) - centroid
-         val S_i = mean(sqrt(sum(diffM *:* diffM,Axis._1)))
-         S(i) = S_i
+        val centroid = centroidM(i,::).t
+        val M = myMap(i)
+        val diffM = M(*,::) - centroid
+        val S_i = mean(sqrt(sum(diffM *:* diffM,Axis._1)))
+        S(i) = S_i
       }
 
       val R = DenseMatrix.zeros[Double](k,k)
       for (i <- 0 until k){
-         for (j<- i+1 until k){
-             val diff = centroidM(i,::)-centroidM(j,::)
-             val norm = sqrt(sum(diff *:* diff))
-             val ratio = (S(i)+S(j))/norm
-             R(i,j)=ratio
-             R(j,i)=ratio
-         }
+        for (j<- i+1 until k){
+          val diff = centroidM(i,::)-centroidM(j,::)
+          val norm = sqrt(sum(diff *:* diff))
+          val ratio = (S(i)+S(j))/norm
+          R(i,j)=ratio
+          R(j,i)=ratio
+        }
       }
       1/mean(max(R,Axis._1))
     }
@@ -392,6 +407,23 @@ class NMFBiCluster_Scala(val inputfile: String, val multfile: String) {
     }
   }
 
+  /**
+    * check if a given feature vector matches the patterns captured
+    * @return
+    */
+  def ifMatch(featurevector: Array[Double]): Boolean = {
+    val confidences = this.getFeatureGroupMembershipConfidence(featurevector)
+    true
+  }
+
+  /**
+    * treat the NMF result as a regular expression and check how fuzzy/large
+    * its coverage is
+    * @return
+    */
+  def getCoverage(): Double ={
+    0
+  }
   /**
     * normalize and do PCA to reduce dimensionality
     *
@@ -403,17 +435,21 @@ class NMFBiCluster_Scala(val inputfile: String, val multfile: String) {
     println("Begin normalization and PCA reduction.")
     val threshold = 0.99
     val eps = 2.2204e-16
+    val weights = sqrt(multiplicities)
 
     if (d == 0) {
-      var normalizedDMatrix= DMatrix(*,::) - mean(DMatrix,Axis._0).t
+      var normalizedDMatrix = DMatrix(*,::) - mean(DMatrix,Axis._0).t
       val stds = stddev(normalizedDMatrix,Axis._0).t + eps
-       normalizedDMatrix = normalizedDMatrix(*,::) / stds
+      normalizedDMatrix = normalizedDMatrix(*,::) / stds
+
       //adjust by multiplicities
-      val multiAdjustedDMatrix = normalizedDMatrix(::, *) * multiplicities
+      val multiAdjustedDMatrix = normalizedDMatrix(::, *) * weights
+
       //do PCA
       val Xsquare = multiAdjustedDMatrix.t * multiAdjustedDMatrix
       val svd.SVD(u, s, vt) = svd(Xsquare)
-      val ss = sqrt(s)
+      //val ss = sqrt(s)
+      val ss = s
       val cumsums = accumulate(ss)
       val totalsum = sum(ss)
       var numPCs = -1
@@ -435,11 +471,12 @@ class NMFBiCluster_Scala(val inputfile: String, val multfile: String) {
       val stds = stddev(normalizedDMatrix,Axis._1)+eps
       normalizedDMatrix = normalizedDMatrix(::,*) / stds
       //adjust by multiplicities
-      val multiAdjustedDMatrix = normalizedDMatrix(::, *) * multiplicities
+      val multiAdjustedDMatrix = normalizedDMatrix(::, *) * weights
       //do PCA
       val svd.SVD(u, s, vt) = svd.reduced(multiAdjustedDMatrix)
-      val cumsums = accumulate(s)
-      val totalsum = sum(s)
+      val ss = s *:* s
+      val cumsums = accumulate(ss)
+      val totalsum = sum(ss)
       var numPCs = -1
       breakable {
         for (i <- 0 until cumsums.length) {
