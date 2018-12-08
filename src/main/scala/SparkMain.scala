@@ -250,7 +250,10 @@ object SparkMain {
 
     root.schemas.foreach{case(name,schema)=>{
       val stringName = fvDir + Types.nameToFileString(name)
-      runNMF(pathToFeatureVectors,stringName)
+      if((new java.io.File(pathToFeatureVectors+stringName+".mults")).length()>0) {
+        println("running NMF on: " + stringName)
+        runNMF(pathToFeatureVectors, stringName)
+      }
     }}
 
     // write fvs
