@@ -4,11 +4,12 @@ import breeze.linalg.norm
 object NMFRun {
   def main(args: Array[String]) = {
     //path to data directory
-    val rootDirectory = "C:\\Users\\Will\\Documents\\GitHub\\JsonGuide\\data\\clusters\\yelpTest\\"//"C:\\Users\\Will\\Documents\\GitHub\\JsonExplorer\\"
+    //val rootDirectory = "C:\\Users\\Will\\Documents\\GitHub\\JsonGuide\\data\\clusters\\yelpTest\\"
+    val rootDirectory = "C:\\Users\\Will\\Documents\\GitHub\\JsonExplorerSpark\\FeatureVectors\\"
     val path = rootDirectory
-    val multName = "multoutput.txt"
+    val multName = "root.mults"
     //feature vector file name
-    val fname = "fvoutput.txt"
+    val fname = "root.features"
 
     val c = new NMFBiCluster_Scala(path + fname, path + multName)
 

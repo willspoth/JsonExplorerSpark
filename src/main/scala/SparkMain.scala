@@ -1,8 +1,13 @@
+package JsonExplorer
+
 import Explorer._
 import Extractor.Extract
 import Seralize.Serializer
 import org.apache.spark.{HashPartitioner, SparkConf, SparkContext}
 import java.io._
+
+import NMF.NMFBiCluster_Scala
+import breeze.linalg.norm
 
 
 object SparkMain {
@@ -20,6 +25,7 @@ object SparkMain {
     val spark = new SparkContext(conf)
 
     val inputLocation = args(0)
+    val pathToFeatureVectors = "C:\\Users\\Will\\Documents\\GitHub\\JsonExplorerSpark\\"
     val KSE_Threshold: Double = 5.0
 
 
@@ -233,14 +239,19 @@ object SparkMain {
 
     fvs.foreach{case((name,fv),mult)=>{
       val (fvWriter,multWriter) = schemaWriters.get(name).get
-      fvWriter.write(fv)
-      multWriter.write(mult)
+      fvWriter.write(fv+'\n')
+      multWriter.write(mult.toString+'\n')
     }}
 
     schemaWriters.foreach(x=> {
       x._2._1.close()
       x._2._2.close()
     })
+
+    root.schemas.foreach{case(name,schema)=>{
+      val stringName = fvDir + Types.nameToFileString(name)
+      runNMF(pathToFeatureVectors,stringName)
+    }}
 
     // write fvs
     //fvs.foreach()
@@ -307,6 +318,29 @@ object SparkMain {
 
     }}
     return tree
+  }
+
+  def runNMF(pathToFeatureVectorFolder:String, attr:String): Unit = {
+
+    val c = new NMFBiCluster_Scala(pathToFeatureVectorFolder + attr + ".features", pathToFeatureVectorFolder + attr + ".mults")
+
+    //sanity check whether function getFeatureGroupMembershipConfidence works as expected
+    //Output of getFeatureGroupMembershipConfidence() is a vector of length K, each i-th (i=1,...,K) value is within [0,1] indicating the membership confidence of feature group i
+    val reconstructed = c.basisVectors * c.projectedMatrix
+    for (i <- 0 until reconstructed.cols) {
+      val vec = reconstructed(::, i)
+      //get feature group confidences
+      val vec1 = c.getFeatureGroupMembershipConfidence(vec.toArray)
+      //get feature vectors of original data matrix that have been projected onto basis vectors
+      val vec2 = c.projectedMatrix(::, i)
+      //group confidences should align with projected rows of the matrix
+      val diff = norm(vec1 - vec2)
+      if (diff > 1E-13)
+        println(diff)
+    }
+    //check if functions that gets the re-ordering of features and data tuples work without error
+    val indACluster = c.getFeatureOrder()
+    val indYCluster = c.getDataOrder()
   }
 
 /*

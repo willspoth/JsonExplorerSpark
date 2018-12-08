@@ -5,7 +5,7 @@ version := "0.1"
 scalaVersion := "2.11.12"
 
 
-Compile/mainClass := Some("SparkMain")
+Compile/mainClass := Some("JsonExplorer.SparkMain")
 
 
 libraryDependencies ++= Seq(
@@ -23,7 +23,7 @@ libraryDependencies ++= Seq(
 
 test in assembly := {}
 assemblyJarName in assembly := "JsonExplorer.jar"
-mainClass in assembly := Some("SparkMain")
+mainClass in assembly := Some("JsonExplorer.SparkMain")
 val nettyMeta = ".*META-INF\\/io\\.netty.*".r
 assemblyMergeStrategy in assembly := {
   case PathList("org","aopalliance", xs @ _*) => MergeStrategy.last
