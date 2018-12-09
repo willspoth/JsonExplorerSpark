@@ -54,31 +54,31 @@ class NMFBiCluster_Scala(val inputfile: String, val multfile: String) {
 
     implicit def bool2double(b: Boolean): Double = if (b) 1.0 else 0.0
 
-    val eps = 2.2204e-16
+    val eps = 1e-32
+    val oriMatrix = X(*, ::) * weights
+    val Matrix = oriMatrix + eps
 
-    val Matrix = X(*, ::) * weights
     if (k > 1) {
       val x = Array.ofDim[Double](c, r)
       for (i <- 0 until c) {
-        x(i) = Matrix(::, i).toArray
+        x(i) = oriMatrix(::, i).toArray
       }
       val clusters = smile.clustering.kmeans(x, k, runs = 3)
       val centroids = clusters.centroids()
       val inx = DenseVector(clusters.getClusterLabel)
-      var A = DenseMatrix(centroids: _*).t
+      var A = DenseMatrix(centroids: _*).t+eps
       val YY = (inx * DenseMatrix.ones[Int](1, k) - DenseMatrix.ones[Int](c, 1) * accumulate(DenseMatrix.ones[Int](1, k), Axis._0)) :== 0
       var Y = YY.map(x => bool2double(x))
       Y = Y.t + 0.2
       var MatrixfitPrevious = Matrix.map(x => Double.MaxValue)
       var finalResidual = -1.0;
 
+
       breakable {
         for (iter <- 1 to maxIter) {
           val temp = Matrix * Y.t
           A = A *:* ( temp /:/ (A * A.t * temp))
-          A = max(A, eps)
           Y = Y *:* ((A.t * Matrix) /:/ (A.t * A * Y))
-          Y = max(Y, eps)
           if (iter % 50 == 0 || iter == maxIter) {
             println("Iterating " + iter + " th")
             val MatrixfitThis = A * Y
@@ -110,7 +110,7 @@ class NMFBiCluster_Scala(val inputfile: String, val multfile: String) {
     else {
       val centroids = mean(Matrix, Axis._1)
       var A = DenseMatrix.zeros[Double](Matrix.rows, 1);
-      A(::, 0) := centroids
+      A(::, 0) := centroids+eps
       val YY = (DenseMatrix.zeros[Int](Matrix.cols, k) - DenseMatrix.ones[Int](c, 1) * accumulate(DenseMatrix.ones[Int](1, k), Axis._0)) :== 0
       var Y = YY.map(x => bool2double(x))
       Y = Y.t + 0.2
@@ -119,10 +119,9 @@ class NMFBiCluster_Scala(val inputfile: String, val multfile: String) {
 
       breakable {
         for (iter <- 1 to maxIter) {
-          A = A *:* ((Matrix * Y.t) /:/ (A * A.t * Matrix * Y.t))
-          A = max(A, eps)
+          val temp = Matrix * Y.t
+          A = A *:* (temp /:/ (A * A.t * temp))
           Y = Y *:* ((A.t * Matrix) /:/ (A.t * A * Y))
-          Y = max(Y, eps)
           if (iter % 50 == 0 || iter == maxIter) {
             println("Iterating " + iter + " th")
             val MatrixfitThis = A * Y
