@@ -1,9 +1,7 @@
-package Seralize
+package Explorer
 
-import Explorer._
 import com.google.gson.Gson
 import scala.collection.JavaConverters._
-
 
 object Serializer {
 

@@ -1,6 +1,4 @@
-package Extractor
-
-import Explorer._
+package Explorer
 
 object Extract {
   def ExtractAttributes(rows:Iterator[JsonExplorerType]): Iterator[JsonExtractionRoot] = {

@@ -1,8 +1,6 @@
 package JsonExplorer
 
 import Explorer._
-import Extractor.Extract
-import Seralize.Serializer
 import org.apache.spark.{HashPartitioner, SparkConf, SparkContext}
 import java.io._
 

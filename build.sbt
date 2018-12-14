@@ -4,7 +4,7 @@ version := "0.1"
 
 scalaVersion := "2.11.12"
 
-
+javaOptions in assembly += "-Xmx4g"
 Compile/mainClass := Some("JsonExplorer.SparkMain")
 
 
@@ -22,6 +22,7 @@ libraryDependencies ++= Seq(
 )
 
 test in assembly := {}
+//assemblyOption in assembly := (assemblyOption in assembly).value.copy(cacheUnzip = false)
 assemblyJarName in assembly := "JsonExplorer.jar"
 mainClass in assembly := Some("JsonExplorer.SparkMain")
 val nettyMeta = ".*META-INF\\/io\\.netty.*".r
