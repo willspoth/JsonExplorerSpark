@@ -27,12 +27,9 @@ case class Attribute() {
 
 
 case class JsonExtractionRoot() {
-  val AllAttributes: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute] = scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute]()
-  var localAttributes: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute] = scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute]()
-  // None is a leaf
-  var computationTree: node = new node() // tree used for local computations and recursive calls
-  val GrandTree: node = new node() // the main tree that expresses all objects and should not change
-  val schemas: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],JsonExtractionSchema] = scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],JsonExtractionSchema]()
+  var AllAttributes: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute] = scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute]()
+  var Tree: node = new node() // the main tree that expresses all objects and should not change
+  var Schemas: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],JsonExtractionSchema] = scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],JsonExtractionSchema]()
 }
 
 case class JsonExtractionSchema() {
