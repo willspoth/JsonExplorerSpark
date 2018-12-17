@@ -101,7 +101,7 @@ class NMFBiCluster_Scala(inputMatrix:DenseMatrix[Double],multVector:DenseVector[
           A = A *:* ( temp /:/ (A * A.t * temp))
           Y = Y *:* ((A.t * Matrix) /:/ (A.t * A * Y))
           if (iter % 50 == 0 || iter == maxIter) {
-            println("Iterating " + iter + " th")
+            //println("Iterating " + iter + " th")
             val MatrixfitThis = A * Y
             val fitResM = MatrixfitPrevious - MatrixfitThis
             val fitRes = sqrt(sum(fitResM *:* fitResM))
@@ -144,7 +144,7 @@ class NMFBiCluster_Scala(inputMatrix:DenseMatrix[Double],multVector:DenseVector[
           A = A *:* (temp /:/ (A * A.t * temp))
           Y = Y *:* ((A.t * Matrix) /:/ (A.t * A * Y))
           if (iter % 50 == 0 || iter == maxIter) {
-            println("Iterating " + iter + " th")
+            //println("Iterating " + iter + " th")
             val MatrixfitThis = A * Y
             val fitResM = MatrixfitPrevious - MatrixfitThis
             val fitRes = sqrt(sum(fitResM *:* fitResM))

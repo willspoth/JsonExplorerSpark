@@ -2,32 +2,30 @@ package JsonExplorer
 
 import Explorer._
 import org.apache.spark.{SparkConf, SparkContext}
-
 import Optimizer.Planner
+import breeze.linalg.{DenseMatrix, DenseVector}
 import org.apache.spark.rdd.RDD
-
+import NMF.NMFBiCluster_Scala
 
 
 object SparkMain {
 
   //-Xmx6g
-  //val rootDirectory = "C:\\Users\\Will\\Documents\\GitHub\\JsonExplorerSpark\\FeatureVectors\\"
+  //C:\Users\Will\Documents\GitHub\JsonExplorer\clean\yelp10000.merged -master local[*] -name hello -spark.driver.maxResultSize 4g -spark.driver.memory 4g -spark.executor.memory 4g
+
   def main(args: Array[String]) = {
 
+
+    val(inputFile, spark) = readArgs(args)
 
     val startTime = System.currentTimeMillis() // Start timer
 
     // Creates the Spark session with its config values.
-    val conf = new SparkConf().set("spark.driver.maxResultSize", "4g").set("spark.driver.memory", "4g").set("spark.executor.memory", "4g")
-      .setMaster("local").setAppName("JSON Explorer")
-    val spark = new SparkContext(conf)
 
-    // global parameters, will go away soon
-    val pathToFeatureVectors = "C:\\Users\\Will\\Documents\\GitHub\\JsonExplorerSpark\\"
+
 
     // read file passed as commandline arg
-    val inputLocation: String = args(0)
-    val records: RDD[String] = spark.textFile(inputLocation)
+    val records: RDD[String] = spark.textFile(inputFile)
 
     /*
       Serialize the input file into JsonExplorerTypes while keeping the JSON tree structure.
@@ -38,6 +36,9 @@ object SparkMain {
       .mapPartitions(x => Serializer.serialize(x)) // serialize output
       //.cache()
 
+    val extractionTime = System.currentTimeMillis()
+    val extractionRunTime = extractionTime - startTime
+    println("Extraction Took: " + extractionRunTime.toString + " ms")
     /*
       Preform the extraction phase:
         - Traverses the serialized JsonExplorerObject
@@ -58,44 +59,72 @@ object SparkMain {
     operatorConverter.Rewrite(kse_threshold) // put in loop and visualize
     operatorConverter.Keep()
 
-
+    val optimizationTime = System.currentTimeMillis()
+    val optimizationRunTime = optimizationTime - extractionTime
+    println("Optimization Took: " + optimizationRunTime.toString + " ms")
     // create feature vectors from this list
 
     val fvs = serializedRecords.flatMap(FeatureVectorCreator.extractFVSs(root.Schemas,_))
-      .reduceByKey(FeatureVectorCreator.Combine(_,_)).collect()
+      .reduceByKey(FeatureVectorCreator.Combine(_,_)).map(x => FeatureVectorCreator.toDense(x._1,x._2))
+      .map(x => runNMF(x._1,x._2,x._3)).collect()
 
-
-    // run nmf and display results
 
 
     val endTime = System.currentTimeMillis() // End Timer
+    val FVRunTime = endTime - optimizationTime
+    println("Extraction Took: " + extractionRunTime.toString + " ms")
+    println("Optimization Took: " + optimizationRunTime.toString + " ms")
+    println("FV Creation Took: " + FVRunTime.toString + " ms")
     println("Total execution time: " + (endTime - startTime) + " ms") // Output run time in milliseconds
 
   }
 
 
-  def runNMF(pathToFeatureVectorFolder:String, attr:String): Unit = {
-/*
-    val c = new NMFBiCluster_Scala(pathToFeatureVectorFolder + attr + ".features", pathToFeatureVectorFolder + attr + ".mults")
+  // coverage, column order, row order
+  def runNMF(name: scala.collection.mutable.ListBuffer[Any], fvs: DenseMatrix[Double], mults: DenseVector[Double]): (Int,Array[Int],Array[Int]) = {
+    //path to data directory
 
+    val c = new NMFBiCluster_Scala(fvs, mults)
     //sanity check whether function getFeatureGroupMembershipConfidence works as expected
     //Output of getFeatureGroupMembershipConfidence() is a vector of length K, each i-th (i=1,...,K) value is within [0,1] indicating the membership confidence of feature group i
-    val reconstructed = c.basisVectors * c.projectedMatrix
-    for (i <- 0 until reconstructed.cols) {
-      val vec = reconstructed(::, i)
+    //val reconstructed = c.basisVectors * c.projectedMatrix
+    val orginal = c.dataMatrix_smile.t
+    for (i <- 0 until orginal.cols){
+      val vec = orginal(::,i)
+      val vecArray = vec.toArray
       //get feature group confidences
-      val vec1 = c.getFeatureGroupMembershipConfidence(vec.toArray)
-      //get feature vectors of original data matrix that have been projected onto basis vectors
-      val vec2 = c.projectedMatrix(::, i)
-      //group confidences should align with projected rows of the matrix
-      val diff = norm(vec1 - vec2)
-      if (diff > 1E-13)
-        println(diff)
+      val vec1 = c.getFeatureGroupMembershipConfidence(vecArray)
+
+      val reconstucted = c.basisVectors*vec1
+      val diffvec = vec-reconstucted
+      val thresh = 0.2
+      val aha = diffvec >:> thresh
+      val wuhu = diffvec <:< -thresh
+      implicit def bool2double(b: Boolean): Double = if (b) 1.0 else 0.0
+      val ahaha = aha.map(x => bool2double(x))
+      val wuhuhu = wuhu.map(x => bool2double(x))
+
     }
-    //check if functions that gets the re-ordering of features and data tuples work without error
-    val indACluster = c.getFeatureOrder()
-    val indYCluster = c.getDataOrder()
-    */
+    (c.getCoverage(),c.getFeatureOrder(),c.getDataOrder())
+  }
+
+  def readArgs(args: Array[String]): (String,SparkContext) = {
+    if(args.size == 0 || args.size%2 == 0) {
+      println("Unexpected Argument, should be, filename -master xxx -name xxx -sparkinfo xxx -sparkinfo xxx")
+      System.exit(0)
+    }
+    val argMap = scala.collection.mutable.HashMap[String,String]("master"->"local","name"->"JsonExplorer")
+    val filename: String = args(0)
+    if(args.tail.size > 1) {
+      val argPairs = args.tail.zip(args.tail.tail).zipWithIndex.filter(_._2%2==0).map(_._1).foreach(x=>argMap.put(x._1.tail,x._2))
+    }
+    val conf = new SparkConf().setMaster(argMap.get("master").get).setAppName(argMap.get("name").get)
+    argMap.remove("master")
+    argMap.remove("name")
+    argMap.foreach(x => conf.set(x._1,x._2))
+    //.set("spark.driver.maxResultSize", "12g").set("spark.driver.memory", "12g").set("spark.executor.memory", "12g")
+    val spark: SparkContext = new SparkContext(conf)
+    (filename,spark)
   }
 
 
