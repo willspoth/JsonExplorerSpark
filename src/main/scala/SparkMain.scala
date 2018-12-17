@@ -2,25 +2,24 @@ package JsonExplorer
 
 import Explorer._
 import org.apache.spark.{SparkConf, SparkContext}
-import java.io._
 
-import NMF.NMFBiCluster_Scala
 import Optimizer.Planner
-import breeze.linalg.norm
 import org.apache.spark.rdd.RDD
+
 
 
 object SparkMain {
 
   //-Xmx6g
-
+  //val rootDirectory = "C:\\Users\\Will\\Documents\\GitHub\\JsonExplorerSpark\\FeatureVectors\\"
   def main(args: Array[String]) = {
+
 
     val startTime = System.currentTimeMillis() // Start timer
 
     // Creates the Spark session with its config values.
     val conf = new SparkConf().set("spark.driver.maxResultSize", "4g").set("spark.driver.memory", "4g").set("spark.executor.memory", "4g")
-      .setMaster("local[*]").setAppName("JSON Explorer")
+      .setMaster("local").setAppName("JSON Explorer")
     val spark = new SparkContext(conf)
 
     // global parameters, will go away soon
@@ -62,42 +61,9 @@ object SparkMain {
 
     // create feature vectors from this list
 
-    val fvs = serializedRecords.flatMap(FeatureVectorCreator.extractFVSs(root.Schemas,_)).map(x=>{((x.parentName,x.libsvm),1)})
-      .reduceByKey(_+_).collect()
+    val fvs = serializedRecords.flatMap(FeatureVectorCreator.extractFVSs(root.Schemas,_))
+      .reduceByKey(FeatureVectorCreator.Combine(_,_)).collect()
 
-    val fvDir = "FeatureVectors/"
-    val schemaWriters: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],(BufferedWriter,BufferedWriter)] = root.Schemas.map{case(name,schema)=>{
-      val stringName = fvDir + Types.nameToFileString(name)
-      val schWriter = new BufferedWriter(new FileWriter(new File(stringName+".sch")))
-      schWriter.write(schema.attributes.map(x=>Types.nameToString(x._1)).mkString(","))
-      schWriter.close()
-
-      val fvWriter = new BufferedWriter(new FileWriter(new File(stringName+".features")))
-      val multWriter = new BufferedWriter(new FileWriter(new File(stringName+".mults")))
-      (name,(fvWriter,multWriter))
-    }}
-
-    fvs.foreach{case((name,fv),mult)=>{
-      val (fvWriter,multWriter) = schemaWriters.get(name).get
-      fvWriter.write(fv+'\n')
-      multWriter.write(mult.toString+'\n')
-    }}
-
-    schemaWriters.foreach(x=> {
-      x._2._1.close()
-      x._2._2.close()
-    })
-
-    root.Schemas.foreach{case(name,schema)=>{
-      val stringName = fvDir + Types.nameToFileString(name)
-      if((new java.io.File(pathToFeatureVectors+stringName+".mults")).length()>0) {
-        println("running NMF on: " + stringName)
-        runNMF(pathToFeatureVectors, stringName)
-      }
-    }}
-
-    // write fvs
-    //fvs.foreach()
 
     // run nmf and display results
 
@@ -109,7 +75,7 @@ object SparkMain {
 
 
   def runNMF(pathToFeatureVectorFolder:String, attr:String): Unit = {
-
+/*
     val c = new NMFBiCluster_Scala(pathToFeatureVectorFolder + attr + ".features", pathToFeatureVectorFolder + attr + ".mults")
 
     //sanity check whether function getFeatureGroupMembershipConfidence works as expected
@@ -129,6 +95,7 @@ object SparkMain {
     //check if functions that gets the re-ordering of features and data tuples work without error
     val indACluster = c.getFeatureOrder()
     val indYCluster = c.getDataOrder()
+    */
   }
 
 

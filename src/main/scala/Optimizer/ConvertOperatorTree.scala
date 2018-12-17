@@ -34,6 +34,9 @@ class ConvertOperatorTree (root: JsonExtractionRoot) {
   // updates root
   def Keep(): Unit = {
     addStarToSchemas()
+    localSchemas.foreach(s => {
+      s._2.attributeLookup = s._2.attributes.map(_._1).zipWithIndex.toMap
+    })
     root.AllAttributes = allAttributes
     root.Schemas = localSchemas
   }

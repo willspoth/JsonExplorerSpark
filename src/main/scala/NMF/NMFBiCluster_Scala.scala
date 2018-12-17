@@ -9,20 +9,15 @@ import smile.read
 import scala.collection.mutable
 import scala.util.control.Breaks._
 
-class NMFBiCluster_Scala(val inputfile: String, val multfile: String) {
-  //load data
-  val (dataMatrix_smile, multiplicities_smile) = getData(inputfile, multfile)
-  val (basisVectors, projectedMatrix, residual) = NMFBiClustering()
-  val ata = basisVectors.t*basisVectors
-  var featureLabels = Array.range(-1,0)
-  var dataLabels = Array.range(-1,0)
+
+object DataUtils{
 
   def getData(datapath: String, multpath: String): (DenseMatrix[Double], DenseVector[Double]) = {
-    val data = read.libsvm(inputfile)
+    val data = read.libsvm(datapath)
     val (dataMatrix_raw, l) = data.unzipInt
     val dataMatrix_smile = DenseMatrix(dataMatrix_raw:_*)
     //load multiplicity
-    val multiplicities_raw = scala.io.Source.fromFile(multfile).getLines.toArray.flatMap(_.split("\n")).map(_.toDouble)
+    val multiplicities_raw = scala.io.Source.fromFile(multpath).getLines.toArray.flatMap(_.split("\n")).map(_.toDouble)
     val multiplicities_smile = breeze.linalg.DenseVector(multiplicities_raw)
     val numTuples = dataMatrix_smile.rows
     val numFeatures = dataMatrix_smile.cols
@@ -30,6 +25,32 @@ class NMFBiCluster_Scala(val inputfile: String, val multfile: String) {
     println(numTuples + " X " + numFeatures + " data matrix loaded with multiplicity sum to " + sum(multiplicities_smile))
     (dataMatrix_smile, multiplicities_smile)
   }
+
+}
+
+class NMFBiCluster_Scala(inputMatrix:DenseMatrix[Double],multVector:DenseVector[Double], inputfiles:Option[(String,String)] = None) {
+
+  var dataMatrix_smile = inputMatrix
+  var multiplicities_smile = multVector
+
+  inputfiles match {
+    case Some((fvfile,multfile)) =>
+      val (dataMatrix, multiplicities) = DataUtils.getData(fvfile, multfile)
+      //sanity check if the in-memory matrix aligns with the matrix read from disk
+      val fvmismatch = sum(dataMatrix_smile :!= dataMatrix)
+      val multmismatch = sum(multiplicities_smile :!= multiplicities)
+      if (fvmismatch == true || multmismatch == true ){
+        throw new Exception("in-memory matrix provided and the one read one disk does not match, please check")
+      }
+    case None =>
+    //do nothing
+  }
+  //load data
+  val (basisVectors, projectedMatrix, residual) = NMFBiClustering()
+  val ata = basisVectors.t*basisVectors
+  var featureLabels = Array.range(-1,0)
+  var dataLabels = Array.range(-1,0)
+  var fptree = new FPTree(Array[Int](0))
 
   /**
     * Major function for NMF Bi-Clustering
@@ -407,23 +428,6 @@ class NMFBiCluster_Scala(val inputfile: String, val multfile: String) {
   }
 
   /**
-    * check if a given feature vector matches the patterns captured
-    * @return
-    */
-  def ifMatch(featurevector: Array[Double]): Boolean = {
-    val confidences = this.getFeatureGroupMembershipConfidence(featurevector)
-    true
-  }
-
-  /**
-    * treat the NMF result as a regular expression and check how fuzzy/large
-    * its coverage is
-    * @return
-    */
-  def getCoverage(): Double ={
-    0
-  }
-  /**
     * normalize and do PCA to reduce dimensionality
     *
     * @param DMatrix rows represents data tuples
@@ -494,6 +498,89 @@ class NMFBiCluster_Scala(val inputfile: String, val multfile: String) {
       println("error, normalization direction must be either 0(rowwise) or 1(columnwise).")
       null
     }
+  }
+
+
+  val threshold = 0.1
+  /**
+    * check if a given feature vector matches the patterns captured
+    * @return
+    */
+  def ifMatch(featurevector: Array[Double]): Boolean = {
+    if (this.fptree.isEmpty()) {
+      val reconstructed = this.basisVectors * this.projectedMatrix
+      this.fptree = this.buildFPTree(reconstructed,this.getFeatureOrder(),this.threshold)
+    }
+    this.fptree.ifMatch(featurevector)
+  }
+
+  /**
+    * treat the NMF result as a regular expression and check how many expressions it covers
+    * @return
+    */
+  def getCoverage(): Int ={
+    if (this.fptree.isEmpty()) {
+      val reconstructed = this.basisVectors * this.projectedMatrix
+      this.fptree = this.buildFPTree(reconstructed,this.getFeatureOrder(),this.threshold)
+    }
+    this.fptree.getNumOfLeaves()
+  }
+
+  /**
+    * build an FPTree from a matrix of double values
+    * values below a threshold = 0 and values above 1- threshold = 1
+    * and values within 0 and 1 means optional
+    * @param input
+    * @param featureOrder
+    * @return
+    */
+  def buildFPTree(input:DenseMatrix[Double],featureOrder: Array[Int], threshold: Double): FPTree ={
+    val mytree = new FPTree(featureOrder)
+    mytree.consumeAll(input,threshold)
+    mytree
+  }
+}
+
+class FPTree (fOrder: Array[Int]) {
+
+  /**
+    * ID = -1 means rootNode
+    * @param featureID
+    */
+  class FPNode (featureID : Int) {
+    var occurCount = 0
+    val ID = featureID
+  }
+
+  var root = new FPNode(-1)
+  val featureOrder = fOrder
+
+  def isEmpty(): Boolean ={
+    true
+  }
+
+  def consume(): Unit = {
+
+  }
+
+  def consumeAll(input:DenseMatrix[Double],threshold : Double): Unit ={
+    val reorderedInput = DenseMatrix.zeros[Double](input.rows,input.cols)
+    for (i <- 0 until this.featureOrder.length) {
+      reorderedInput(::,i) := input(::,this.featureOrder(i))
+    }
+    //todo
+  }
+
+  def branch (): Unit ={
+
+  }
+
+  def ifMatch(featurevector: Array[Double]): Boolean ={
+    true
+  }
+
+  def getNumOfLeaves(): Int ={
+    0
   }
 
 
