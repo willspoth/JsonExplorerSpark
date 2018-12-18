@@ -157,8 +157,8 @@ object FeatureVectorCreator {
 
   def toDense(name: scala.collection.mutable.ListBuffer[Any], m: scala.collection.mutable.HashMap[ArrayBuffer[Byte], Int]): (scala.collection.mutable.ListBuffer[Any],DenseMatrix[Double],DenseVector[Double]) = {
     val t = m.toList.unzip[ArrayBuffer[Byte],Int]
-    val fvs: DenseMatrix[Double] = new DenseMatrix[Double](t._1.size,t._1(0).size,(t._1.map(_.map(_.toDouble).toList)).flatten.toArray)
-    val mults: DenseVector[Double] = new DenseVector[Double](t._2.map(_.toDouble).toArray)
+    val fvs: DenseMatrix[Double] = new DenseMatrix[Double](t._1.size,t._1(0).size,t._1.flatten.toArray.map(_.toDouble))
+    val mults: DenseVector[Double] = new DenseVector[Double](t._2.toArray.map(_.toDouble))
     (name,fvs,mults)
   }
 

@@ -23,7 +23,6 @@ object SparkMain {
     // Creates the Spark session with its config values.
 
 
-
     // read file passed as commandline arg
     val records: RDD[String] = spark.textFile(inputFile)
 
@@ -36,9 +35,6 @@ object SparkMain {
       .mapPartitions(x => Serializer.serialize(x)) // serialize output
       //.cache()
 
-    val extractionTime = System.currentTimeMillis()
-    val extractionRunTime = extractionTime - startTime
-    println("Extraction Took: " + extractionRunTime.toString + " ms")
     /*
       Preform the extraction phase:
         - Traverses the serialized JsonExplorerObject
@@ -48,6 +44,10 @@ object SparkMain {
     val root: JsonExtractionRoot = serializedRecords
       .mapPartitions(x => Extract.ExtractAttributes(x)).reduce(Extract.combineAllRoots(_,_)) // extraction phase
 
+
+    val extractionTime = System.currentTimeMillis()
+    val extractionRunTime = extractionTime - startTime
+    println("Extraction Took: " + extractionRunTime.toString + " ms")
 
     // compute entropy and reassemble tree for optimizations
     val kse_intervals = Planner.buildOperatorTree(root) // updates root by reference
@@ -122,7 +122,6 @@ object SparkMain {
     argMap.remove("master")
     argMap.remove("name")
     argMap.foreach(x => conf.set(x._1,x._2))
-    //.set("spark.driver.maxResultSize", "12g").set("spark.driver.memory", "12g").set("spark.executor.memory", "12g")
     val spark: SparkContext = new SparkContext(conf)
     (filename,spark)
   }
