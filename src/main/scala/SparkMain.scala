@@ -36,9 +36,6 @@ object SparkMain {
       .mapPartitions(x => Serializer.serialize(x)) // serialize output
       //.cache()
 
-    val extractionTime = System.currentTimeMillis()
-    val extractionRunTime = extractionTime - startTime
-    println("Extraction Took: " + extractionRunTime.toString + " ms")
     /*
       Preform the extraction phase:
         - Traverses the serialized JsonExplorerObject
@@ -48,6 +45,9 @@ object SparkMain {
     val root: JsonExtractionRoot = serializedRecords
       .mapPartitions(x => Extract.ExtractAttributes(x)).reduce(Extract.combineAllRoots(_,_)) // extraction phase
 
+    val extractionTime = System.currentTimeMillis()
+    val extractionRunTime = extractionTime - startTime
+    println("Extraction Took: " + extractionRunTime.toString + " ms")
 
     // compute entropy and reassemble tree for optimizations
     val kse_intervals = Planner.buildOperatorTree(root) // updates root by reference
@@ -65,7 +65,7 @@ object SparkMain {
     // create feature vectors from this list
 
     val fvs = serializedRecords.flatMap(FeatureVectorCreator.extractFVSs(root.Schemas,_))
-      .reduceByKey(FeatureVectorCreator.Combine(_,_)).map(x => FeatureVectorCreator.toDense(x._1,x._2))
+      .reduceByKey(FeatureVectorCreator.Combine(_,_)).map(x => FeatureVectorCreator.toDense(root.Schemas,x._1,x._2))
       .map(x => runNMF(x._1,x._2,x._3)).collect()
 
 

@@ -7,8 +7,8 @@ import scala.collection.mutable.ArrayBuffer
 object FeatureVectorCreator {
 
 
-  def extractFVSs(schemas: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],JsonExtractionSchema], row: JsonExplorerType): scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],scala.collection.mutable.HashMap[ArrayBuffer[Byte],Int]] = {
-    val fvs: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],scala.collection.mutable.HashMap[ArrayBuffer[Byte],Int]] = scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],scala.collection.mutable.HashMap[ArrayBuffer[Byte],Int]]()
+  def extractFVSs(schemas: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],JsonExtractionSchema], row: JsonExplorerType): scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Int],Int]] = {
+    val fvs: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Int],Int]] = scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Int],Int]]()
     extractFVS(scala.collection.mutable.ListBuffer[Any](), schemas, row, fvs, scala.collection.mutable.ListBuffer[Any]())
     return fvs
   }
@@ -17,7 +17,7 @@ object FeatureVectorCreator {
   /*
     This is a recursive function that takes in a row(JE_Object) and returns a FeatureArrayBuffer
    */
-  def extractFVS(prefix: scala.collection.mutable.ListBuffer[Any], schemas: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],JsonExtractionSchema], row: JsonExplorerType, fvs: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],scala.collection.mutable.HashMap[ArrayBuffer[Byte],Int]], currentSchema: scala.collection.mutable.ListBuffer[Any]): Unit = {
+  def extractFVS(prefix: scala.collection.mutable.ListBuffer[Any], schemas: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],JsonExtractionSchema], row: JsonExplorerType, fvs: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Int],Int]], currentSchema: scala.collection.mutable.ListBuffer[Any]): Unit = {
 
 
     def getSchema(name: scala.collection.mutable.ListBuffer[Any]): JsonExtractionSchema = {
@@ -35,28 +35,28 @@ object FeatureVectorCreator {
       return schemas.contains(name)
     }
 
-    def extract(name: scala.collection.mutable.ListBuffer[Any], jet: JsonExplorerType, fv: ArrayBuffer[Byte]): Unit = {
+    def extract(name: scala.collection.mutable.ListBuffer[Any], jet: JsonExplorerType, fv: scala.collection.mutable.ListBuffer[Int]): Unit = {
       jet match {
         case JE_String | JE_Numeric | JE_Boolean | JE_Null | JE_Empty_Array | JE_Empty_Object =>
           if (name.nonEmpty && !name.equals(currentSchema))
-            fv(schema.attributeLookup.get(name).get) = 1
+            fv += schema.attributeLookup.get(name).get
         case JE_Object(xs) =>
           if(containsName(name,currentSchema)){ // this attribute is a separate
-            fv(schema.attributeLookup.get(name).get) = 1
+            fv += schema.attributeLookup.get(name).get
             extractFVS(name, schemas, jet, fvs, name)
           } else { // name is not separate schema
             if (name.nonEmpty && !name.equals(currentSchema)) {
-              fv(schema.attributeLookup.get(name).get) = 1
+              fv += schema.attributeLookup.get(name).get
             }
             xs.foreach(je => extract(name :+ je._1, je._2, fv))
           }
         case JE_Array(xs) =>
           if(containsName(name,currentSchema)){ // this attribute is a separate
-            fv(schema.attributeLookup.get(name).get) = 1
+            fv += schema.attributeLookup.get(name).get
             extractFVS(name, schemas, jet, fvs, name)
           } else {
             if (name.nonEmpty && !name.equals(currentSchema)) {
-              fv(schema.attributeLookup.get(name).get) = 1
+              fv += schema.attributeLookup.get(name).get
             }
             xs.foreach(je => {
               extract(name :+ Star, je, fv)
@@ -70,7 +70,7 @@ object FeatureVectorCreator {
 
     row match {
       case obj: JE_Object =>
-        val fv: ArrayBuffer[Byte] = ArrayBuffer.fill[Byte](schema.attributes.size)(0)
+        val fv: scala.collection.mutable.ListBuffer[Int] = scala.collection.mutable.ListBuffer[Int]()
         extract(prefix,obj,fv)
         fvs.get(currentSchema) match {
           case Some(s) =>
@@ -79,7 +79,7 @@ object FeatureVectorCreator {
               case None => s.put(fv,1)
             }
           case None =>
-            val t = scala.collection.mutable.HashMap[ArrayBuffer[Byte],Int]()
+            val t = scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Int],Int]()
             t.put(fv,1)
             fvs.put(currentSchema,t)
         }
@@ -87,7 +87,7 @@ object FeatureVectorCreator {
         schema.naiveType match {
           case JE_Obj_Array =>
             arr.xs.foreach(jet => {
-              val fv: ArrayBuffer[Byte] = ArrayBuffer.fill[Byte](schema.attributes.size)(0)
+              val fv: scala.collection.mutable.ListBuffer[Int] = scala.collection.mutable.ListBuffer[Int]()
               extract(prefix:+ Star,jet,fv)
               fvs.get(currentSchema) match {
                 case Some(s) =>
@@ -96,7 +96,7 @@ object FeatureVectorCreator {
                     case None => s.put(fv,1)
                   }
                 case None =>
-                  val t = scala.collection.mutable.HashMap[ArrayBuffer[Byte],Int]()
+                  val t = scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Int],Int]()
                   t.put(fv,1)
                   fvs.put(currentSchema,t)
               }
@@ -135,7 +135,7 @@ object FeatureVectorCreator {
     (name,collector.toList)
   }
 
-  def Combine(l: scala.collection.mutable.HashMap[ArrayBuffer[Byte], Int], r: scala.collection.mutable.HashMap[ArrayBuffer[Byte], Int]): scala.collection.mutable.HashMap[ArrayBuffer[Byte], Int] = {
+  def Combine(l: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Int], Int], r: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Int], Int]): scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Int], Int] = {
     if(l.size >= r.size){ // copy right into left
       r.foreach{case(n,c1) => {
         l.get(n) match {
@@ -155,11 +155,22 @@ object FeatureVectorCreator {
     }
   }
 
-  def toDense(name: scala.collection.mutable.ListBuffer[Any], m: scala.collection.mutable.HashMap[ArrayBuffer[Byte], Int]): (scala.collection.mutable.ListBuffer[Any],DenseMatrix[Double],DenseVector[Double]) = {
-    val t = m.toList.unzip[ArrayBuffer[Byte],Int]
-    val fvs: DenseMatrix[Double] = new DenseMatrix[Double](t._1.size,t._1(0).size,(t._1.map(_.map(_.toDouble).toList)).flatten.toArray)
-    val mults: DenseVector[Double] = new DenseVector[Double](t._2.map(_.toDouble).toArray)
-    (name,fvs,mults)
+  def toDense(schemas: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],JsonExtractionSchema], name: scala.collection.mutable.ListBuffer[Any], m: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Int], Int]): (scala.collection.mutable.ListBuffer[Any],DenseMatrix[Double],DenseVector[Double]) = {
+    val (fvs,mults) = m.toList.unzip[scala.collection.mutable.ListBuffer[Int],Int]
+    val fvMatrix: DenseMatrix[Double] = DenseMatrix.zeros[Double](fvs.size,schemas.get(name).get.attributes.size)
+    val multVector: DenseVector[Double] = DenseVector.zeros[Double](fvs.size)
+
+    fvs.zipWithIndex.foreach{case(row,rowidx) => {
+      row.foreach(colidx => fvMatrix.update(rowidx,colidx,1.0))
+    }}
+
+    mults.zipWithIndex.foreach{case(v,i)=> {
+      multVector.update(i,v)
+    }}
+
+    //val fvs: DenseMatrix[Double] = new DenseMatrix[Double](t._1.size,t._1(0).size,(t._1.map(_.map(_.toDouble).toList)).flatten.toArray)
+    //val mults: DenseVector[Double] = new DenseVector[Double](t._2.map(_.toDouble).toArray)
+    (name,fvMatrix,multVector)
   }
 
 }
