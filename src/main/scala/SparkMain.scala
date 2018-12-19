@@ -1,11 +1,18 @@
 package JsonExplorer
 
+import java.awt.{BorderLayout, Color, Dimension, GridLayout}
+
 import Explorer._
 import org.apache.spark.{SparkConf, SparkContext}
 import Optimizer.Planner
-import breeze.linalg.{DenseMatrix, DenseVector}
+import breeze.linalg.{*, DenseMatrix, DenseVector}
 import org.apache.spark.rdd.RDD
 import NMF.NMFBiCluster_Scala
+import javax.swing.border.{CompoundBorder, EmptyBorder, LineBorder}
+import javax.swing.{JFrame, JPanel}
+import smile.plot.{PlotCanvas, PlotPanel, Window}
+
+
 
 
 object SparkMain {
@@ -57,6 +64,22 @@ object SparkMain {
 
     val operatorConverter = new Optimizer.ConvertOperatorTree(root)
     operatorConverter.Rewrite(kse_threshold) // put in loop and visualize
+
+    val frame: JFrame = new JFrame()
+    val (tree,depth) = Types.buildNodeTree(operatorConverter.localSchemas)
+
+    val panel: Viz.DrawTree = new Viz.DrawTree(tree,depth)
+
+    frame.setSize(2000,1500)
+
+    frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE)
+    frame.setVisible(true)
+
+    frame.getContentPane.add(panel)
+
+    while(true){
+      val donothing = true
+    }
     operatorConverter.Keep()
 
     val optimizationTime = System.currentTimeMillis()
@@ -83,6 +106,10 @@ object SparkMain {
   // coverage, column order, row order
   def runNMF(name: scala.collection.mutable.ListBuffer[Any], fvs: DenseMatrix[Double], mults: DenseVector[Double]): (Int,Array[Int],Array[Int]) = {
     //path to data directory
+    if(fvs.data.isEmpty)
+      return (0,null,null)
+
+    val orig = fvs(*, ::).map( dv => dv.toArray).toArray
 
     val c = new NMFBiCluster_Scala(fvs, mults)
     //sanity check whether function getFeatureGroupMembershipConfidence works as expected
@@ -105,7 +132,46 @@ object SparkMain {
       val wuhuhu = wuhu.map(x => bool2double(x))
 
     }
-    (c.getCoverage(),c.getFeatureOrder(),c.getDataOrder())
+
+    val numClusters = 2
+    val numIterations = 20
+    val clusters = smile.clustering.KMeans.lloyd(orig,numClusters,numIterations)
+    val clusterLabels = clusters.getClusterLabel
+    val c1 = orig.zip(clusterLabels).sortBy(_._2).map(_._1)
+
+    val d = fvs(*, ::).map( dv => dv.toArray.zip(c.getFeatureOrder()).sortBy(_._2).map(_._1)).toArray.zip(c.getDataOrder()).sortBy(_._2).map(_._1)
+
+    val frame: JFrame = new JFrame(Types.nameToString(name))
+    frame.setPreferredSize(new Dimension(3000, 1500))
+    frame.setLayout(new GridLayout(1,2))
+
+    val p1 = smile.plot.heatmap(orig)
+    val p3 = smile.plot.heatmap(c1)
+    val p2 = smile.plot.heatmap(d)
+
+    p1.close
+    p2.close
+    p3.close
+
+    p1.canvas.setTitle("Original")
+    p3.canvas.setTitle("KMeans k=" + numClusters.toString)
+    p2.canvas.setTitle("Reshaped")
+
+    frame.getContentPane.add(p1.canvas)
+    frame.getContentPane.add(p3.canvas)
+    frame.getContentPane.add(p2.canvas)
+
+    p1.canvas.reset()
+    p2.canvas.reset()
+    p3.canvas.reset()
+
+    frame.pack()
+    frame.setVisible(true)
+
+
+
+    //(c.getCoverage(),c.getFeatureOrder(),c.getDataOrder())
+    (0,c.getFeatureOrder(),c.getDataOrder())
   }
 
   def readArgs(args: Array[String]): (String,SparkContext) = {

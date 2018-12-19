@@ -183,4 +183,31 @@ object Types {
     else
       return nameString
   }
+
+  def buildNodeTree(attributes: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],_]): (node,Int) = {
+    val depth: Int = attributes.foldLeft(0){case (maxDepth,n) => Math.max(n._1.size,maxDepth)}+1
+
+    val tree = new node()
+    attributes.foreach{case(name,attribute) => {
+      // now need to make operator tree
+      name.foldLeft(tree){case(tree,n) => {
+
+        tree.get(n) match {
+          case Some(opNode) =>
+            opNode match {
+              case Some(nod) =>
+                tree.get(n).get.get
+              case None =>
+                tree.put(n,Some(new node()))
+                tree.get(n).get.get
+            }
+          case None =>
+            tree.put(n,Some(new node()))
+            tree.get(n).get.get
+        }
+      }}
+
+    }}
+    return (tree,depth)
+  }
 }
