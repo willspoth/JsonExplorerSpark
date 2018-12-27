@@ -29,7 +29,7 @@ object Serializer {
     // this is the recursive function that is responsible for updating the collector, can probably be replace instead of
     def extractTypesO(jsonMap: java.util.Map[String,Object]): JsonExplorerType = {
 
-      val local_objs: scala.collection.mutable.ListBuffer[(String,JsonExplorerType)] = new scala.collection.mutable.ListBuffer[(String,JsonExplorerType)]()
+      val local_objs: scala.collection.mutable.HashMap[String,JsonExplorerType] = new scala.collection.mutable.HashMap[String,JsonExplorerType]()
 
       jsonMap.asScala.foreach{case(name,obj) => {
         var attributeClass: Class[_ <: Object] = null
@@ -39,33 +39,33 @@ object Serializer {
           case e: java.lang.NullPointerException => // do nothing
         }
         attributeClass match {
-          case(StringClass) => local_objs.append((name,JE_String))
-          case(DoubleClass) => local_objs.append((name,JE_Numeric))
-          case(BooleanClass) => local_objs.append((name,JE_Boolean))
-          case(null) => local_objs.append((name,JE_Null))
+          case(StringClass) => local_objs.put(name,JE_String)
+          case(DoubleClass) => local_objs.put(name,JE_Numeric)
+          case(BooleanClass) => local_objs.put(name,JE_Boolean)
+          case(null) => local_objs.put(name,JE_Null)
           case(ArrayClass) =>
             val attributeList = obj.asInstanceOf[java.util.ArrayList[java.lang.Object]]
             if(attributeList.isEmpty)
-              local_objs.append((name,JE_Empty_Array))
+              local_objs.put(name,JE_Empty_Array)
             else{
-              local_objs.append((name,extractTypesA(attributeList)))
+              local_objs.put(name,extractTypesA(attributeList))
             }
           case(ObjectClass) =>
             val t = gson.fromJson(gson.toJson(obj), MapType)
             if(t.isEmpty)
-              local_objs.append((name,JE_Empty_Object))
+              local_objs.put(name,JE_Empty_Object)
             else{
-              local_objs.append((name,extractTypesO(gson.fromJson(gson.toJson(obj), MapType))))
+              local_objs.put(name,extractTypesO(gson.fromJson(gson.toJson(obj), MapType)))
             }
           case _ =>
             if(ThrowUnknownTypeException)
               throw new UnknownTypeException("Unknown Type Found in Extractor MapType: " + attributeClass.toString())
             else
-              local_objs.append((name,JE_Unknown))
+              local_objs.put(name,JE_Unknown)
         } // end match
       }}
 
-      return JE_Object(local_objs.toMap)
+      return JE_Object(local_objs)
 
     }
 
@@ -108,7 +108,7 @@ object Serializer {
         } // end match
       }}
 
-      return JE_Array(local_objs.toList)
+      return JE_Array(local_objs)
     }
 
     while(rows.hasNext){

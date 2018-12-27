@@ -2,6 +2,8 @@ package Optimizer
 
 import Explorer._
 
+import scala.collection.mutable.ListBuffer
+
 object Planner {
 
   def buildOperatorTree(jeRoot: JsonExtractionRoot): scala.collection.mutable.ListBuffer[(scala.collection.mutable.ListBuffer[Any],Double)] = {
@@ -86,6 +88,32 @@ object Planner {
       else
         (largestInter,loc,x)
     }}._2
+  }
+
+
+  // updates all attributes in root's naive types
+  def setNaiveTypes(jeRoot: JsonExtractionRoot): Unit = {
+    jeRoot.AllAttributes.foreach(x=> {
+      x._2.naiveType = typeSummary(x._2.types)})
+  }
+
+  private def typeSummary(attributeTypes: scala.collection.mutable.HashMap[JsonExplorerType,Int]): JsonExplorerType = {
+    var (isObject,isArray) = attributeTypes.foldLeft((true,true)){case((isObject,isArray),(typ,count)) => {
+      typ.getType() match {
+        case JE_Empty_Object | JE_Object => (isObject,false)
+        case JE_Empty_Array | JE_Array => (false,isArray)
+        case JE_Null => (isObject,isArray)
+        case _ => (false,false)
+      }
+    }}
+    isObject = isObject && (attributeTypes.contains(JE_Empty_Object)||attributeTypes.contains(JE_Object))
+    isArray = isArray && (attributeTypes.contains(JE_Empty_Array)||attributeTypes.contains(JE_Array))
+    if(isObject)
+      return JE_Array
+    else if(isArray)
+      return JE_Array
+    else
+      return JE_Basic
   }
 
 }

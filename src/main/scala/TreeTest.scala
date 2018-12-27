@@ -16,7 +16,7 @@ object TreeTest{
 
     val (tree,depth) = Types.buildNodeTree(schemas)
 
-    val panel: Viz.DrawTree = new Viz.DrawTree(tree,depth)
+    val panel: Viz.DrawTree = new Viz.DrawTree(tree,depth, null)
 
     frame.setSize(2000,1500)
 

@@ -1,9 +1,15 @@
 package Explorer
 
+import Explorer.Types.AttributeName
+
+import scala.collection.mutable.ListBuffer
+
 
 sealed trait JsonExplorerType {
-  def getType():JsonExplorerType
-  def id():Int
+  def getType(): JsonExplorerType
+  def id(): Int
+  def add(name: String, jet: JsonExplorerType): Unit = ???
+  def isEmpty(): Boolean = ???
 }
 
 case class FeatureVector(fv: Array[Byte]) {
@@ -25,13 +31,13 @@ case class Attribute() {
 
 
 case class JsonExtractionRoot() {
-  var AllAttributes: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute] = scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute]()
+  var AllAttributes: scala.collection.mutable.HashMap[AttributeName,Attribute] = scala.collection.mutable.HashMap[AttributeName,Attribute]()
   var Tree: node = new node() // the main tree that expresses all objects and should not change
-  var Schemas: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],JsonExtractionSchema] = scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],JsonExtractionSchema]()
+  var Schemas: scala.collection.mutable.HashMap[AttributeName,JsonExtractionSchema] = scala.collection.mutable.HashMap[AttributeName,JsonExtractionSchema]()
 }
 
 case class JsonExtractionSchema() {
-  val attributes: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute] = scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute]()
+  val attributes: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute] = scala.collection.mutable.HashMap[AttributeName,Attribute]()
   var attributeLookup: Map[scala.collection.mutable.ListBuffer[Any],Int] = null
   // None is a leaf
   var tree: node = null
@@ -60,17 +66,18 @@ case object JE_Array extends JsonExplorerType {
   def getType: JsonExplorerType = JE_Array
   def id: Int = 4
 }
-case class JE_Array(xs:List[JsonExplorerType]) extends JsonExplorerType {
-  def apply[A](xs: A*): List[A] = xs.toList
+case class JE_Array(xs:ListBuffer[JsonExplorerType]) extends JsonExplorerType {
 
-  def unapply(arg: JE_Array): Option[List[JsonExplorerType]] = {
+  def unapply(arg: JE_Array): Option[ListBuffer[JsonExplorerType]] = {
     if(true)
-      return Some(arg.asInstanceOf[List[JsonExplorerType]])
+      return Some(arg.asInstanceOf[ListBuffer[JsonExplorerType]])
     else return None
   }
 
   def getType: JsonExplorerType = JE_Array
   def id: Int = 4
+  override def add(name: String, jet: JsonExplorerType): Unit = {xs += jet}
+  override def isEmpty(): Boolean = xs.isEmpty
 }
 case object JE_Empty_Array extends JsonExplorerType {
   def getType: JsonExplorerType = JE_Empty_Array
@@ -80,15 +87,20 @@ case object JE_Object extends JsonExplorerType {
   def getType: JsonExplorerType = JE_Object
   def id: Int = 5
 }
-case class JE_Object(xs:Map[String,JsonExplorerType]) extends JsonExplorerType {
+case class JE_Object(xs:scala.collection.mutable.HashMap[String,JsonExplorerType]) extends JsonExplorerType {
 
-  def unapply(arg: JE_Object): Option[Map[String,JE_Object]] = {
+  def unapply(arg: JE_Object): Option[scala.collection.mutable.HashMap[String,JE_Object]] = {
     if(true)
-      return Some(arg.asInstanceOf[Map[String,JE_Object]])
+      return Some(arg.asInstanceOf[scala.collection.mutable.HashMap[String,JE_Object]])
     else return None
   }
   def getType: JsonExplorerType = JE_Object
   def id: Int = 5
+  override def add(name: String, jet: JsonExplorerType): Unit = {
+    xs.put(name,jet)
+  }
+
+  override def isEmpty(): Boolean = xs.isEmpty
 }
 case object JE_Empty_Object extends JsonExplorerType {
   def getType: JsonExplorerType = JE_Empty_Object
@@ -121,18 +133,21 @@ case object JE_Obj_Array extends JsonExplorerType {
   def getType: JsonExplorerType = JE_Obj_Array
   def id: Int = 10
 }
-case class JE_Obj_Array(xs:List[JsonExplorerType]) extends JsonExplorerType {
-  def apply[A](xs: A*): List[A] = xs.toList
+case class JE_Obj_Array(xs:ListBuffer[JsonExplorerType]) extends JsonExplorerType {
 
-  def unapply(arg: JE_Obj_Array): Option[List[JsonExplorerType]] = {
+  def unapply(arg: JE_Obj_Array): Option[ListBuffer[JsonExplorerType]] = {
     if(true)
-      return Some(arg.asInstanceOf[List[JsonExplorerType]])
+      return Some(arg.asInstanceOf[ListBuffer[JsonExplorerType]])
     else return None
   }
 
   def getType: JsonExplorerType = JE_Obj_Array
   def id: Int = 10
 
+}
+case object JE_Basic extends JsonExplorerType {
+  def getType: JsonExplorerType = JE_Basic
+  def id: Int = 11
 }
 
 
@@ -210,4 +225,6 @@ object Types {
     }}
     return (tree,depth)
   }
+
+  type AttributeName = scala.collection.mutable.ListBuffer[Any]
 }

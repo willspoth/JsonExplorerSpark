@@ -2,6 +2,8 @@ package Optimizer
 
 import Explorer._
 
+import scala.collection.mutable.ListBuffer
+
 class ConvertOperatorTree (root: JsonExtractionRoot) {
 
   var allAttributes: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute] = null
@@ -83,7 +85,9 @@ class ConvertOperatorTree (root: JsonExtractionRoot) {
 
   }
 
-  private def isArrayOfObjects(xs:List[JsonExplorerType]): Boolean = {
+
+
+  private def isArrayOfObjects(xs:ListBuffer[JsonExplorerType]): Boolean = {
     (xs.foldLeft(true){case(bool,x) => { // with only objects for children
       x.getType() match {
         case JE_Object| JE_Var_Object | JE_Obj_Array | JE_Null | JE_Empty_Object | JE_Empty_Array => bool

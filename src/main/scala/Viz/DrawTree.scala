@@ -2,12 +2,12 @@ package Viz
 
 import java.awt.{Color, FontMetrics, Graphics}
 
-import Explorer.node
+import Explorer._
 import javax.swing.JPanel
 
 import scala.collection.mutable.ListBuffer
 
-class DrawTree(tree: node, maxDepth: Int) extends JPanel {
+class DrawTree(tree: node, maxDepth: Int, attributes: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute]) extends JPanel {
 
   val heightOffset: Double = .5
   val widthOffset: Double = .5
@@ -15,21 +15,31 @@ class DrawTree(tree: node, maxDepth: Int) extends JPanel {
   val nodes = ListBuffer[treeNode]()
   val edges = ListBuffer[treeEdge]()
 
-  case class treeNode(name: String, x: Int, y: Int, range: (Double,Double))
+  case class treeNode(name: String, x: Int, y: Int, range: (Double,Double), JEType: JsonExplorerType)
   case class treeEdge(px: Int, py: Int, cx: Int, cy: Int)
 
-  def drawNode(name: String, n: node, widthRange: (Double,Double), currentDepth: Int, yInterval: Double): (Int,Int) = {
+  def drawNode(name: scala.collection.mutable.ListBuffer[Any], n: node, widthRange: (Double,Double), currentDepth: Int, yInterval: Double): (Int,Int) = {
     val parentX: Double = widthRange._1+((widthRange._2-widthRange._1)/2) // centered
     val parentY: Double = (currentDepth*yInterval)+(yInterval/2) // centered
-    nodes += new treeNode(name,parentX.intValue(),parentY.intValue(), widthRange)
+    if(name.isEmpty)
+      nodes += new treeNode("root",parentX.intValue(),parentY.intValue(), widthRange, JE_Object)
+    else
+      nodes += new treeNode(name.last.toString,parentX.intValue(),parentY.intValue(), widthRange, attributes.get(name).get.naiveType)
     if(n.isEmpty) { // is a Leaf
       return (parentX.intValue(),parentY.intValue())
     }
     val childXInterval: Double = (widthRange._2-widthRange._1)/n.size
     n.foldLeft(widthRange._1){case(low,(childName,grandChildren)) => {
-      val (childX,childY) = drawNode(childName.toString,grandChildren.get,(low,low+childXInterval),currentDepth+1, yInterval)
-      edges += new treeEdge(parentX.intValue(),parentY.intValue(),childX,childY)
-      low+childXInterval
+      val cN = name:+childName
+      val cA = attributes.get(cN).get.naiveType
+      cA.getType() match {
+        case JE_Array => low// don't display arrays
+        case _ =>
+          val (childX,childY) = drawNode(cN,grandChildren.get,(low,low+childXInterval),currentDepth+1, yInterval)
+          edges += new treeEdge(parentX.intValue(),parentY.intValue(),childX,childY)
+          low+childXInterval
+      }
+
     }}
     return (parentX.intValue(),parentY.intValue())
   }
@@ -47,7 +57,7 @@ class DrawTree(tree: node, maxDepth: Int) extends JPanel {
     val yRange: (Double,Double) = (0.0,absoluteHeight)
     val xRange: (Double,Double) = (0.0,absoluteWidth)
 
-    drawNode("root",tree,xRange,0,(absoluteHeight/maxDepth))
+    drawNode(ListBuffer[Any](),tree,xRange,0,(absoluteHeight/maxDepth))
 
     val f: FontMetrics = g.getFontMetrics()
 
@@ -70,7 +80,15 @@ class DrawTree(tree: node, maxDepth: Int) extends JPanel {
         nodeHeight,
         nodes.map(x => f.stringWidth(x.name)).max
       )
-      g.setColor(Color.white)
+
+      n.JEType match {
+        case JE_Array => g.setColor(Color.red)
+        case JE_Object => g.setColor(Color.green)
+        case JE_Basic => g.setColor(Color.white)
+        case _ => g.setColor(Color.blue)
+      }
+
+
       g.fillOval(n.x-nodeWidth/2, n.y-nodeHeight/2,
         nodeWidth, nodeHeight)
       g.setColor(Color.black)

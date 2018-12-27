@@ -10,7 +10,10 @@ import org.apache.spark.rdd.RDD
 import NMF.NMFBiCluster_Scala
 import javax.swing.border.{CompoundBorder, EmptyBorder, LineBorder}
 import javax.swing.{JFrame, JPanel}
+import org.apache.spark.storage.StorageLevel
 import smile.plot.{PlotCanvas, PlotPanel, Window}
+
+import scala.collection.mutable.ListBuffer
 
 
 
@@ -19,6 +22,8 @@ object SparkMain {
 
   //-Xmx6g
   //C:\Users\Will\Documents\GitHub\JsonExplorer\clean\yelp10000.merged -master local[*] -name hello -spark.driver.maxResultSize 4g -spark.driver.memory 4g -spark.executor.memory 4g
+  //C:\Users\William\Desktop\Data\jsonData\yelp.json
+  //C:/Users/William/Documents/Github/JsonExplorerSpark/data/yelp10000.merged
 
   def main(args: Array[String]) = {
 
@@ -37,10 +42,15 @@ object SparkMain {
       Serialize the input file into JsonExplorerTypes while keeping the JSON tree structure.
       This can then be parsed in the feature vector creation phase without having to re-read the input file.
      */
+    val serializedRecords = records
+      .filter(x => (x.size > 0 && x.charAt(0).equals('{')))
+      .mapPartitions(x=>JacksonSerializer.serialize(x))
+    /*
     val serializedRecords: RDD[JsonExplorerType] = records
       .filter(x => (x.size > 0 && x.charAt(0).equals('{'))) // filter out lines that aren't Json
       .mapPartitions(x => Serializer.serialize(x)) // serialize output
-      //.cache()
+      */
+      .persist(StorageLevel.DISK_ONLY)
 
     /*
       Preform the extraction phase:
@@ -61,25 +71,46 @@ object SparkMain {
 
     // finds the largest interval, this will be the starting kse
     val kse_threshold = Planner.inferKSE(kse_intervals.sortBy(_._2))
+    Planner.setNaiveTypes(root)
+
+/*
+    val m: Array[Array[Double]] = kse_intervals.map(x => {
+      root.AllAttributes.get(x._1).get.naiveType.getType() match {
+        case JE_Array | JE_Empty_Array | JE_Obj_Array => List(x._2,1.0).toArray
+        case JE_Object | JE_Empty_Object | JE_Var_Object => List(x._2,0.0).toArray
+        case _ => List(x._2,-1.0).toArray
+      }
+    }).toArray
+
+    val entropyChart = smile.plot.plot(m)
+    entropyChart.close
+*/
+
+//    val temp = root.AllAttributes.get(ListBuffer[Any]("attributes"))
 
     val operatorConverter = new Optimizer.ConvertOperatorTree(root)
     operatorConverter.Rewrite(kse_threshold) // put in loop and visualize
-
+/*
     val frame: JFrame = new JFrame()
-    val (tree,depth) = Types.buildNodeTree(operatorConverter.localSchemas)
+    val (tree,depth) = Types.buildNodeTree(operatorConverter.allAttributes)
 
-    val panel: Viz.DrawTree = new Viz.DrawTree(tree,depth)
+    val panel: Viz.DrawTree = new Viz.DrawTree(tree,depth,operatorConverter.allAttributes)
 
     frame.setSize(2000,1500)
 
     frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE)
+    frame.setLayout(new GridLayout(1,2))
     frame.setVisible(true)
 
     frame.getContentPane.add(panel)
+    frame.getContentPane.add(entropyChart.canvas)
+
+
 
     while(true){
       val donothing = true
     }
+    */
     operatorConverter.Keep()
 
     val optimizationTime = System.currentTimeMillis()
@@ -89,8 +120,8 @@ object SparkMain {
 
     val fvs = serializedRecords.flatMap(FeatureVectorCreator.extractFVSs(root.Schemas,_))
       .reduceByKey(FeatureVectorCreator.Combine(_,_)).map(x => FeatureVectorCreator.toDense(x._1,x._2))
-      .map(x => runNMF(x._1,x._2,x._3)).collect()
-
+      //.map(x => runNMF(x._1,x._2,x._3))
+      .collect()
 
 
     val endTime = System.currentTimeMillis() // End Timer
@@ -179,7 +210,7 @@ object SparkMain {
       println("Unexpected Argument, should be, filename -master xxx -name xxx -sparkinfo xxx -sparkinfo xxx")
       System.exit(0)
     }
-    val argMap = scala.collection.mutable.HashMap[String,String]("master"->"local","name"->"JsonExplorer")
+    val argMap = scala.collection.mutable.HashMap[String,String]("master"->"local[*]","name"->"JsonExplorer")
     val filename: String = args(0)
     if(args.tail.size > 1) {
       val argPairs = args.tail.zip(args.tail.tail).zipWithIndex.filter(_._2%2==0).map(_._1).foreach(x=>argMap.put(x._1.tail,x._2))
