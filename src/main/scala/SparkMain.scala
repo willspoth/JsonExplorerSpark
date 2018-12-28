@@ -2,6 +2,7 @@ package JsonExplorer
 
 import java.awt.{BorderLayout, Color, Dimension, GridLayout}
 
+import Explorer.Types.AttributeName
 import Explorer._
 import org.apache.spark.{SparkConf, SparkContext}
 import Optimizer.Planner
@@ -20,23 +21,14 @@ import scala.collection.mutable.ListBuffer
 
 object SparkMain {
 
-  //-Xmx6g
-  //C:\Users\Will\Documents\GitHub\JsonExplorer\clean\yelp10000.merged -master local[*] -name hello -spark.driver.maxResultSize 4g -spark.driver.memory 4g -spark.executor.memory 4g
-  //C:\Users\William\Desktop\Data\jsonData\yelp.json
-  //C:/Users/William/Documents/Github/JsonExplorerSpark/data/yelp10000.merged
 
   def main(args: Array[String]) = {
 
-
-    val(inputFile, spark) = readArgs(args)
+    val(inputFile, spark) = readArgs(args) // Creates the Spark session with its config values.
 
     val startTime = System.currentTimeMillis() // Start timer
 
-    // Creates the Spark session with its config values.
-
-
-    // read file passed as commandline arg
-    val records: RDD[String] = spark.textFile(inputFile)
+    val records: RDD[String] = spark.textFile(inputFile) // read file
 
     /*
       Serialize the input file into JsonExplorerTypes while keeping the JSON tree structure.
@@ -50,7 +42,7 @@ object SparkMain {
       .filter(x => (x.size > 0 && x.charAt(0).equals('{'))) // filter out lines that aren't Json
       .mapPartitions(x => Serializer.serialize(x)) // serialize output
       */
-      .persist(StorageLevel.DISK_ONLY)
+      .persist(StorageLevel.DISK_ONLY) // persist allows the serialized rdd to exist for the fv creation process
 
     /*
       Preform the extraction phase:
@@ -58,13 +50,21 @@ object SparkMain {
         - Collects each attributes type information and co-occurrence-lite
         - This can then be converted into key-space and type entropy
      */
-    val root: JsonExtractionRoot = serializedRecords
-      .mapPartitions(x => Extract.ExtractAttributes(x)).reduce(Extract.combineAllRoots(_,_)) // extraction phase
 
-
+    val extracted: Array[(AttributeName,Attribute)] = serializedRecords.flatMap(Extract.ExtractAttributes(_)).combineByKey(Extract.createCombiner,Extract.mergeValue,Extract.mergeCombiners)
+      .map{case(n,t) => {
+        val a = Attribute()
+        a.name = n
+        a.types = t
+        (n,a)
+      }}.collect()
     val extractionTime = System.currentTimeMillis()
     val extractionRunTime = extractionTime - startTime
     println("Extraction Took: " + extractionRunTime.toString + " ms")
+
+    val root: JsonExtractionRoot = new JsonExtractionRoot()
+    root.AllAttributes = scala.collection.mutable.HashMap(extracted: _*)
+
 
     // compute entropy and reassemble tree for optimizations
     val kse_intervals = Planner.buildOperatorTree(root) // updates root by reference
