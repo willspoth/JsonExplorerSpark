@@ -1,5 +1,6 @@
 package Optimizer
 
+import Explorer.Types.AttributeName
 import Explorer._
 
 import scala.collection.mutable.ListBuffer
@@ -37,7 +38,7 @@ class ConvertOperatorTree (root: JsonExtractionRoot) {
   def Keep(): Unit = {
     addStarToSchemas()
     localSchemas.foreach(s => {
-      s._2.attributeLookup = s._2.attributes.map(_._1).zipWithIndex.toMap
+      s._2.attributeLookup = scala.collection.mutable.HashMap[ListBuffer[Any],Int](s._2.attributes.map(_._1).zipWithIndex.toList: _*)
     })
     root.AllAttributes = allAttributes
     root.Schemas = localSchemas

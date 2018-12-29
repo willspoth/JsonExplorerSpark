@@ -2,7 +2,7 @@ package JsonExplorer
 
 import java.awt.{BorderLayout, Color, Dimension, GridLayout}
 
-import Explorer.Types.AttributeName
+import Explorer.Types.{AttributeName, SchemaRoot}
 import Explorer._
 import org.apache.spark.{SparkConf, SparkContext}
 import Optimizer.Planner
@@ -119,7 +119,8 @@ object SparkMain {
     // create feature vectors from this list
 
     val fvs = serializedRecords.flatMap(FeatureVectorCreator.extractFVSs(root.Schemas,_))
-      .reduceByKey(FeatureVectorCreator.Combine(_,_)).map(x => FeatureVectorCreator.toDense(x._1,x._2))
+      .combineByKey(FeatureVectorCreator.createCombiner,FeatureVectorCreator.mergeValue,FeatureVectorCreator.mergeCombiners).map(x => FeatureVectorCreator.toDense(x._1,x._2))
+      //.reduceByKey(FeatureVectorCreator.Combine(_,_)).map(x => FeatureVectorCreator.toDense(x._1,x._2))
       //.map(x => runNMF(x._1,x._2,x._3))
       .collect()
 
@@ -135,7 +136,7 @@ object SparkMain {
 
 
   // coverage, column order, row order
-  def runNMF(name: scala.collection.mutable.ListBuffer[Any], fvs: DenseMatrix[Double], mults: DenseVector[Double]): (Int,Array[Int],Array[Int]) = {
+  def runNMF(name: SchemaRoot, fvs: DenseMatrix[Double], mults: DenseVector[Double]): (Int,Array[Int],Array[Int]) = {
     //path to data directory
     if(fvs.data.isEmpty)
       return (0,null,null)

@@ -38,7 +38,7 @@ case class JsonExtractionRoot() {
 
 case class JsonExtractionSchema() {
   val attributes: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute] = scala.collection.mutable.HashMap[AttributeName,Attribute]()
-  var attributeLookup: Map[scala.collection.mutable.ListBuffer[Any],Int] = null
+  var attributeLookup: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Int] = null
   // None is a leaf
   var tree: node = null
   var naiveType: JsonExplorerType = null
@@ -227,4 +227,5 @@ object Types {
   }
 
   type AttributeName = scala.collection.mutable.ListBuffer[Any]
+  type SchemaRoot = scala.collection.mutable.ListBuffer[Any]
 }
