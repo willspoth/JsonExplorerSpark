@@ -1,6 +1,6 @@
 package Explorer
 
-import Explorer.Types.{AttributeName, SchemaRoot}
+import Explorer.Types.{AttributeName, SchemaName}
 import breeze.linalg.{DenseMatrix, DenseVector}
 
 import scala.collection.mutable.ArrayBuffer
@@ -8,9 +8,10 @@ import scala.collection.mutable.ArrayBuffer
 object FeatureVectorCreator {
 
 
-  def extractFVSs(schemas: scala.collection.mutable.HashMap[SchemaRoot,JsonExtractionSchema], row: JsonExplorerType): scala.collection.mutable.HashMap[SchemaRoot,scala.collection.mutable.HashMap[ArrayBuffer[Byte],Int]] = {
-    val fvs: scala.collection.mutable.HashMap[SchemaRoot,scala.collection.mutable.HashMap[ArrayBuffer[Byte],Int]] = scala.collection.mutable.HashMap[SchemaRoot,scala.collection.mutable.HashMap[ArrayBuffer[Byte],Int]]()
-    extractFVS(new AttributeName(), schemas, row, fvs, new SchemaRoot())
+
+  def extractFVSs(schemas: scala.collection.mutable.HashMap[SchemaName,JsonExtractionSchema], row: JsonExplorerType): scala.collection.mutable.HashMap[SchemaName,scala.collection.mutable.HashMap[ArrayBuffer[Byte],Int]] = {
+    val fvs: scala.collection.mutable.HashMap[SchemaName,scala.collection.mutable.HashMap[ArrayBuffer[Byte],Int]] = scala.collection.mutable.HashMap[SchemaName,scala.collection.mutable.HashMap[ArrayBuffer[Byte],Int]]()
+    extractFVS(new AttributeName(), schemas, row, fvs, new SchemaName())
     return fvs
   }
 
@@ -18,7 +19,7 @@ object FeatureVectorCreator {
   /*
     This is a recursive function that takes in a row(JE_Object) and returns a FeatureArrayBuffer
    */
-  def extractFVS(prefix: AttributeName, schemas: scala.collection.mutable.HashMap[SchemaRoot,JsonExtractionSchema], row: JsonExplorerType, fvs: scala.collection.mutable.HashMap[SchemaRoot,scala.collection.mutable.HashMap[ArrayBuffer[Byte],Int]], currentSchema: SchemaRoot): Unit = {
+  def extractFVS(prefix: AttributeName, schemas: scala.collection.mutable.HashMap[SchemaName,JsonExtractionSchema], row: JsonExplorerType, fvs: scala.collection.mutable.HashMap[SchemaName,scala.collection.mutable.HashMap[ArrayBuffer[Byte],Int]], currentSchema: SchemaName): Unit = {
 
     def getSchema(name: AttributeName): JsonExtractionSchema = {
       schemas.get(name) match {
@@ -86,7 +87,7 @@ object FeatureVectorCreator {
           case JE_Obj_Array =>
             arr.xs.foreach(jet => {
               val fv: ArrayBuffer[Byte] = ArrayBuffer.fill[Byte](schema.attributes.size)(0)
-              extract(prefix:+ Star,jet,fv)
+              extract(prefix :+ Star,jet,fv)
               fvs.get(currentSchema) match {
                 case Some(s) =>
                   s.get(fv) match {
@@ -120,25 +121,7 @@ object FeatureVectorCreator {
     (name,collector.toList)
   }
 
-  def Combine(l: scala.collection.mutable.HashMap[ArrayBuffer[Byte], Int], r: scala.collection.mutable.HashMap[ArrayBuffer[Byte], Int]): scala.collection.mutable.HashMap[ArrayBuffer[Byte], Int] = {
-    if(l.size >= r.size){ // copy right into left
-      r.foreach{case(n,c1) => {
-        l.get(n) match {
-          case Some(c2) => l.put(n,c1+c2)
-          case None => l.put(n,c1)
-        }
-      }}
-      return l
-    } else { // copy left into right
-      l.foreach{case(n,c1) => {
-        r.get(n) match {
-          case Some(c2) => r.put(n,c1+c2)
-          case None => r.put(n,c1)
-        }
-      }}
-      return r
-    }
-  }
+
 
   def toDense(name: AttributeName, m: scala.collection.mutable.HashMap[ArrayBuffer[Byte], Int]): (AttributeName,DenseMatrix[Double],DenseVector[Double]) = {
     val t = m.toList.unzip[ArrayBuffer[Byte],Int]

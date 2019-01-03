@@ -2,7 +2,7 @@ package JsonExplorer
 
 import java.awt.{BorderLayout, Color, Dimension, GridLayout}
 
-import Explorer.Types.{AttributeName, SchemaRoot}
+import Explorer.Types.{AttributeName, SchemaName}
 import Explorer._
 import org.apache.spark.{SparkConf, SparkContext}
 import Optimizer.Planner
@@ -24,6 +24,7 @@ object SparkMain {
 
   def main(args: Array[String]) = {
 
+
     val(inputFile, spark) = readArgs(args) // Creates the Spark session with its config values.
 
     val startTime = System.currentTimeMillis() // Start timer
@@ -42,7 +43,7 @@ object SparkMain {
       .filter(x => (x.size > 0 && x.charAt(0).equals('{'))) // filter out lines that aren't Json
       .mapPartitions(x => Serializer.serialize(x)) // serialize output
       */
-      .persist(StorageLevel.DISK_ONLY) // persist allows the serialized rdd to exist for the fv creation process
+      //.persist(StorageLevel.DISK_ONLY) // persist allows the serialized rdd to exist for the fv creation process
 
     /*
       Preform the extraction phase:
@@ -117,7 +118,7 @@ object SparkMain {
     val optimizationRunTime = optimizationTime - extractionTime
     println("Optimization Took: " + optimizationRunTime.toString + " ms")
     // create feature vectors from this list
-
+  
     val fvs = serializedRecords.flatMap(FeatureVectorCreator.extractFVSs(root.Schemas,_))
       .combineByKey(FeatureVectorCreator.createCombiner,FeatureVectorCreator.mergeValue,FeatureVectorCreator.mergeCombiners).map(x => FeatureVectorCreator.toDense(x._1,x._2))
       //.reduceByKey(FeatureVectorCreator.Combine(_,_)).map(x => FeatureVectorCreator.toDense(x._1,x._2))
@@ -136,7 +137,7 @@ object SparkMain {
 
 
   // coverage, column order, row order
-  def runNMF(name: SchemaRoot, fvs: DenseMatrix[Double], mults: DenseVector[Double]): (Int,Array[Int],Array[Int]) = {
+  def runNMF(name: SchemaName, fvs: DenseMatrix[Double], mults: DenseVector[Double]): (Int,Array[Int],Array[Int]) = {
     //path to data directory
     if(fvs.data.isEmpty)
       return (0,null,null)

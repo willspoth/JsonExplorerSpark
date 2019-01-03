@@ -2,6 +2,7 @@ package Optimizer
 
 import Explorer._
 
+import scala.collection.GenTraversableOnce
 import scala.collection.mutable.ListBuffer
 
 object Planner {
@@ -10,7 +11,9 @@ object Planner {
     val kse_intervals: scala.collection.mutable.ListBuffer[(scala.collection.mutable.ListBuffer[Any],Double)] = scala.collection.mutable.ListBuffer[(scala.collection.mutable.ListBuffer[Any],Double)]()
     jeRoot.AllAttributes.foreach{case(name,attribute) => {
       val kse: Double = keySpaceEntropy(attribute.types)
+      val te: Double = typeEntropy(attribute.types)
       attribute.keySpaceEntropy = Some(kse)
+      attribute.typeEntropy = Some(te)
       kse_intervals += Tuple2(name,kse)
       // now need to make operator tree
       name.foldLeft(jeRoot.Tree){case(tree,n) => {
@@ -36,13 +39,13 @@ object Planner {
 
   private def keySpaceEntropy(m:scala.collection.mutable.Map[JsonExplorerType,Int]): Double = {
     val total: Int = m.foldLeft(0){(count,x) => {
-      x._1 match {
+      x._1.getType() match {
         case JE_Empty_Array | JE_Empty_Object => count
         case _ => count + x._2
       }
     }}
     val entropy: Double = m.foldLeft(0.0){(ent,x) => {
-      x._1 match {
+      x._1.getType() match {
         case JE_Empty_Array | JE_Empty_Object => ent
         case _ =>
           val p: Double = x._2.toDouble / total
@@ -55,30 +58,44 @@ object Planner {
       return -1.0 * entropy
   }
 
-  /*
-  def typeEntropy(typeObject: JsonExplorerType): Double = {
 
+  def typeEntropy(m:scala.collection.mutable.Map[JsonExplorerType,Int]): Double = {
 
+    val entropy: List[(Double,Int)] = m.flatMap{ case(jet,count) => {
+      jet match {
+        case JE_Array(xs) =>
+          val teMap = xs.foldLeft(new scala.collection.mutable.HashMap[JsonExplorerType,Int]()){case(acc,v) =>
+            v.getType() match {
+              case JE_Empty_Object => acc.update(JE_Object,acc.getOrElseUpdate(JE_Object,0)+1);acc
+              case JE_Empty_Array => acc.update(JE_Array,acc.getOrElseUpdate(JE_Array,0)+1);acc
+              case _ => acc.update(v,acc.getOrElseUpdate(v,0)+1);acc
+            }
+          }
+          val total = teMap.map(_._2).sum
+          val e = teMap.map{case(v,c) => (c/total.toDouble)*math.log(c/total.toDouble)}.sum * -1.0
+          List[(Double,Int)](Tuple2(e,count))
 
+        case JE_Object(xs) =>
+          val teMap = xs.map(x => x._2).foldLeft(new scala.collection.mutable.HashMap[JsonExplorerType,Int]()){case(acc,v) =>
+            v.getType() match {
+              case JE_Empty_Object => acc.update(JE_Object,acc.getOrElseUpdate(JE_Object,0)+1);acc
+              case JE_Empty_Array => acc.update(JE_Array,acc.getOrElseUpdate(JE_Array,0)+1);acc
+              case _ => acc.update(v,acc.getOrElseUpdate(v,0)+1);acc
+            }
+          }
+          val total = teMap.map(_._2).sum
+          val e = teMap.map{case(v,c) => (c/total.toDouble)*math.log(c/total.toDouble)}.sum * -1.0
+          List[(Double,Int)](Tuple2(e,count))
 
-    val m: scala.collection.mutable.Map[String,Int] = scala.collection.mutable.Map[String,Int]()
-    unpackedTypeList.split(",").map(_.split(":")(1)).foreach(x => {
-      m.get(x) match {
-        case Some(c) => m.update(x,c+1)
-        case None => m.update(x,1)
+        case _ => List[(Double,Int)]()
       }
-    })
-    val total: Int = m.foldLeft(0){(count,x) => count + x._2}
-    val entropy: Double = m.foldLeft(0.0){(ent,x) => {
-      val p: Double = x._2.toDouble/total
-      ent + (p*scala.math.log(p))
-    }}
-    if(entropy == 0.0)
-      return entropy
-    else
-      return -1.0 * entropy
+    }}.toList
+    val total = entropy.map(_._2).sum
+    val e = entropy.map{case(v,c) => v*c/total.toDouble}.sum
+
+    return e
   }
-*/
+
 
 
   def inferKSE(kse_intervals: scala.collection.mutable.ListBuffer[(scala.collection.mutable.ListBuffer[Any],Double)]): Double = {

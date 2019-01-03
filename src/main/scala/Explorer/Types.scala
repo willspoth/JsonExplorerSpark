@@ -227,5 +227,5 @@ object Types {
   }
 
   type AttributeName = scala.collection.mutable.ListBuffer[Any]
-  type SchemaRoot = scala.collection.mutable.ListBuffer[Any]
+  type SchemaName = scala.collection.mutable.ListBuffer[Any]
 }
