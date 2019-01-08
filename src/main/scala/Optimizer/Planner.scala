@@ -126,7 +126,7 @@ object Planner {
     isObject = isObject && (attributeTypes.contains(JE_Empty_Object)||attributeTypes.contains(JE_Object))
     isArray = isArray && (attributeTypes.contains(JE_Empty_Array)||attributeTypes.contains(JE_Array))
     if(isObject)
-      return JE_Array
+      return JE_Object
     else if(isArray)
       return JE_Array
     else

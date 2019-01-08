@@ -3,11 +3,15 @@ package Viz
 import java.awt.{Color, FontMetrics, Graphics}
 
 import Explorer._
+import Optimizer.ConvertOperatorTree
 import javax.swing.JPanel
 
 import scala.collection.mutable.ListBuffer
 
-class DrawTree(tree: node, maxDepth: Int, attributes: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute]) extends JPanel {
+class DrawTree(operatorConverter: ConvertOperatorTree) extends JPanel {
+
+  var (tree,maxDepth) = Types.buildNodeTree(operatorConverter.allAttributes)
+  var attributes = operatorConverter.allAttributes
 
   val heightOffset: Double = .5
   val widthOffset: Double = .5
@@ -45,6 +49,8 @@ class DrawTree(tree: node, maxDepth: Int, attributes: scala.collection.mutable.H
   }
 
   override def paint(g: Graphics) { // draw the nodes and edges
+    //(tree,maxDepth) = Types.buildNodeTree(operatorConverter.allAttributes)
+    attributes = operatorConverter.allAttributes
 
     nodes.clear()
     edges.clear()
@@ -83,9 +89,11 @@ class DrawTree(tree: node, maxDepth: Int, attributes: scala.collection.mutable.H
 
       n.JEType match {
         case JE_Array => g.setColor(Color.red)
-        case JE_Object => g.setColor(Color.green)
+        case JE_Object => g.setColor(Color.blue)
+        case JE_Var_Object => g.setColor(Color.cyan)
+        case JE_Obj_Array => g.setColor(Color.ORANGE)
         case JE_Basic => g.setColor(Color.white)
-        case _ => g.setColor(Color.blue)
+        case _ => g.setColor(Color.YELLOW)
       }
 
 

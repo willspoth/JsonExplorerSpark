@@ -7,16 +7,20 @@ import scala.collection.mutable.ListBuffer
 
 class ConvertOperatorTree (root: JsonExtractionRoot) {
 
-  var allAttributes: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute] = null
+  var allAttributes: scala.collection.mutable.HashMap[AttributeName,Attribute] = null
   var localSchemas: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],JsonExtractionSchema] = null
   var computationTree: node = null
   var localAttributes: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute] = null
 
-  def exploreObjects() = null
+
+  def cloneTypes(attributes: scala.collection.mutable.HashMap[AttributeName,Attribute]): scala.collection.mutable.HashMap[AttributeName,Attribute] = {
+    val a = attributes.map(x => Tuple2(x._1.clone(),x._2.clone()))
+    a
+  }
 
 
-  def Rewrite(kse_threshold: Double) = {
-    allAttributes = root.AllAttributes.clone()
+  def Rewrite(kse_threshold: Double): Unit = {
+    allAttributes = cloneTypes(root.AllAttributes)
     localSchemas = scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],JsonExtractionSchema]()
     localAttributes = scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute]()
     rewriteRoot(root.Tree, scala.collection.mutable.ListBuffer[Any](), allAttributes, kse_threshold)
@@ -80,8 +84,9 @@ class ConvertOperatorTree (root: JsonExtractionRoot) {
           case JE_Object | JE_Null | JE_Empty_Object => varObject
           case _ => false
         }
-      }})
+      }}) {
         attribute.naiveType = JE_Var_Object
+      }
     }
 
   }

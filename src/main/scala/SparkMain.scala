@@ -9,9 +9,11 @@ import Optimizer.Planner
 import breeze.linalg.{*, DenseMatrix, DenseVector}
 import org.apache.spark.rdd.RDD
 import NMF.NMFBiCluster_Scala
+import Viz.PlannerFrame
 import javax.swing.border.{CompoundBorder, EmptyBorder, LineBorder}
 import javax.swing.{JFrame, JPanel}
 import org.apache.spark.storage.StorageLevel
+import smile.data.AttributeDataset
 import smile.plot.{PlotCanvas, PlotPanel, Window}
 
 import scala.collection.mutable.ListBuffer
@@ -22,10 +24,12 @@ import scala.collection.mutable.ListBuffer
 object SparkMain {
 
 
+  var plannerFrame: PlannerFrame = null
+
   def main(args: Array[String]) = {
 
 
-    val(inputFile, spark) = readArgs(args) // Creates the Spark session with its config values.
+    val(inputFile, memory, useUI, doNMF,spark) = readArgs(args) // Creates the Spark session with its config values.
 
     val startTime = System.currentTimeMillis() // Start timer
 
@@ -38,6 +42,15 @@ object SparkMain {
     val serializedRecords = records
       .filter(x => (x.size > 0 && x.charAt(0).equals('{')))
       .mapPartitions(x=>JacksonSerializer.serialize(x))
+    memory match {
+      case Some(inmemory) =>
+        if(inmemory)
+          serializedRecords.persist(StorageLevel.MEMORY_ONLY)
+        else
+          serializedRecords.persist(StorageLevel.DISK_ONLY)
+      case None => // don't cache at all
+    }
+
     /*
     val serializedRecords: RDD[JsonExplorerType] = records
       .filter(x => (x.size > 0 && x.charAt(0).equals('{'))) // filter out lines that aren't Json
@@ -66,65 +79,22 @@ object SparkMain {
     val root: JsonExtractionRoot = new JsonExtractionRoot()
     root.AllAttributes = scala.collection.mutable.HashMap(extracted: _*)
 
+    plannerFrame = new PlannerFrame(root,useUI) // root is updated in here
 
-    // compute entropy and reassemble tree for optimizations
-    val kse_intervals = Planner.buildOperatorTree(root) // updates root by reference
-
-    // finds the largest interval, this will be the starting kse
-    val kse_threshold = Planner.inferKSE(kse_intervals.sortBy(_._2))
-    Planner.setNaiveTypes(root)
-
-/*
-    val m: Array[Array[Double]] = kse_intervals.map(x => {
-      root.AllAttributes.get(x._1).get.naiveType.getType() match {
-        case JE_Array | JE_Empty_Array | JE_Obj_Array => List(x._2,1.0).toArray
-        case JE_Object | JE_Empty_Object | JE_Var_Object => List(x._2,0.0).toArray
-        case _ => List(x._2,-1.0).toArray
-      }
-    }).toArray
-
-    val entropyChart = smile.plot.plot(m)
-    entropyChart.close
-*/
-
-//    val temp = root.AllAttributes.get(ListBuffer[Any]("attributes"))
-
-    val operatorConverter = new Optimizer.ConvertOperatorTree(root)
-    operatorConverter.Rewrite(kse_threshold) // put in loop and visualize
-/*
-    val frame: JFrame = new JFrame()
-    val (tree,depth) = Types.buildNodeTree(operatorConverter.allAttributes)
-
-    val panel: Viz.DrawTree = new Viz.DrawTree(tree,depth,operatorConverter.allAttributes)
-
-    frame.setSize(2000,1500)
-
-    frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE)
-    frame.setLayout(new GridLayout(1,2))
-    frame.setVisible(true)
-
-    frame.getContentPane.add(panel)
-    frame.getContentPane.add(entropyChart.canvas)
-
-
-
-    while(true){
-      val donothing = true
-    }
-    */
-    operatorConverter.Keep()
 
     val optimizationTime = System.currentTimeMillis()
     val optimizationRunTime = optimizationTime - extractionTime
     println("Optimization Took: " + optimizationRunTime.toString + " ms")
     // create feature vectors from this list
-  
+
     val fvs = serializedRecords.flatMap(FeatureVectorCreator.extractFVSs(root.Schemas,_))
       .combineByKey(FeatureVectorCreator.createCombiner,FeatureVectorCreator.mergeValue,FeatureVectorCreator.mergeCombiners).map(x => FeatureVectorCreator.toDense(x._1,x._2))
       //.reduceByKey(FeatureVectorCreator.Combine(_,_)).map(x => FeatureVectorCreator.toDense(x._1,x._2))
-      //.map(x => runNMF(x._1,x._2,x._3))
-      .collect()
-
+      doNMF match {
+        case true =>
+          fvs.map(x => runNMF(x._1,x._2,x._3)).collect()
+        case false => fvs.collect()
+      }
 
     val endTime = System.currentTimeMillis() // End Timer
     val FVRunTime = endTime - optimizationTime
@@ -165,7 +135,7 @@ object SparkMain {
       val wuhuhu = wuhu.map(x => bool2double(x))
 
     }
-
+/*
     val numClusters = 2
     val numIterations = 20
     val clusters = smile.clustering.KMeans.lloyd(orig,numClusters,numIterations)
@@ -201,13 +171,13 @@ object SparkMain {
     frame.pack()
     frame.setVisible(true)
 
-
+*/
 
     //(c.getCoverage(),c.getFeatureOrder(),c.getDataOrder())
     (0,c.getFeatureOrder(),c.getDataOrder())
   }
 
-  def readArgs(args: Array[String]): (String,SparkContext) = {
+  def readArgs(args: Array[String]): (String,Option[Boolean],Boolean,Boolean,SparkContext) = {
     if(args.size == 0 || args.size%2 == 0) {
       println("Unexpected Argument, should be, filename -master xxx -name xxx -sparkinfo xxx -sparkinfo xxx")
       System.exit(0)
@@ -222,7 +192,25 @@ object SparkMain {
     argMap.remove("name")
     argMap.foreach(x => conf.set(x._1,x._2))
     val spark: SparkContext = new SparkContext(conf)
-    (filename,spark)
+    val memory: Option[Boolean] = argMap.get("memory") match {
+      case Some("memory" | "inmemory" | "true" | "t" | "y" | "yes") => Some(true)
+      case Some("n" | "no" | "false" | "disk") => Some(false)
+      case _ | None => None
+    }
+
+    val ui: Boolean = argMap.get("ui") match {
+      case Some("memory" | "inmemory" | "true" | "t" | "y" | "yes") => true
+      case Some("n" | "no" | "false" | "disk") => false
+      case _ | None => false
+    }
+
+    val nmf: Boolean = argMap.get("nmf") match {
+      case Some("memory" | "inmemory" | "true" | "t" | "y" | "yes") => true
+      case Some("n" | "no" | "false" | "disk") => false
+      case _ | None => false
+    }
+
+    (filename, memory, ui, nmf,spark)
   }
 
 

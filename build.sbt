@@ -50,5 +50,3 @@ assemblyMergeStrategy in assembly := {
     val oldStrategy = (assemblyMergeStrategy in assembly).value
     oldStrategy(x)
 }
-
-// java -cp libs\scala-library-2.11.12.jar;libs\spark-core_2.11-2.3.2.jar;libs\hadoop-common-2.7.7.jar;target\scala-2.11\JsonExplorer.jar SparkMain C:\Users\Will\Documents\GitHub\JsonExplorer\clean/yelp10000.merged

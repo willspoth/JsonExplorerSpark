@@ -27,6 +27,22 @@ case class Attribute() {
   var types: scala.collection.mutable.HashMap[JsonExplorerType,Int] = scala.collection.mutable.HashMap[JsonExplorerType,Int]()
   var typeEntropy: Option[Double] = None
   var keySpaceEntropy: Option[Double] = None
+
+  override def clone(): Attribute = {
+    val a = new Attribute()
+    a.name = name.clone()
+    a.naiveType = naiveType.getType()
+    a.types = types.clone()
+    a.typeEntropy = typeEntropy match {
+      case Some(v) => new Some(v)
+      case None => None
+    }
+    a.keySpaceEntropy = keySpaceEntropy match {
+      case Some(v) => new Some(v)
+      case None => None
+    }
+    a
+  }
 }
 
 
@@ -183,7 +199,7 @@ object Types {
       return nameString
   }
 
-  def nameToFileString(name: scala.collection.mutable.ListBuffer[Any]): String = {
+  def nameToFileString(name: Types.AttributeName): String = {
     if(name.isEmpty)
       return "root"
     val nameString = name.foldLeft("")((acc,n)=>{
@@ -199,7 +215,7 @@ object Types {
       return nameString
   }
 
-  def buildNodeTree(attributes: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],_]): (node,Int) = {
+  def buildNodeTree(attributes: scala.collection.mutable.HashMap[Types.AttributeName,_]): (node,Int) = {
     val depth: Int = attributes.foldLeft(0){case (maxDepth,n) => Math.max(n._1.size,maxDepth)}+1
 
     val tree = new node()
