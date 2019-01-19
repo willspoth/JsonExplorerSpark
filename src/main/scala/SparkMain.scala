@@ -1,7 +1,9 @@
 package JsonExplorer
 
 import java.awt.{BorderLayout, Color, Dimension, GridLayout}
+import java.util
 
+import BiMax.OurBiMax
 import Explorer.Types.{AttributeName, SchemaName}
 import Explorer._
 import org.apache.spark.{SparkConf, SparkContext}
@@ -17,6 +19,8 @@ import smile.data.AttributeDataset
 import smile.plot.{PlotCanvas, PlotPanel, Window}
 
 import scala.collection.mutable.ListBuffer
+import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 
 
@@ -28,7 +32,7 @@ object SparkMain {
 
   def main(args: Array[String]) = {
 
-
+    
     val(inputFile, memory, useUI, doNMF,spark) = readArgs(args) // Creates the Spark session with its config values.
 
     val startTime = System.currentTimeMillis() // Start timer
@@ -88,12 +92,14 @@ object SparkMain {
     // create feature vectors from this list
 
     val fvs = serializedRecords.flatMap(FeatureVectorCreator.extractFVSs(root.Schemas,_))
-      .combineByKey(FeatureVectorCreator.createCombiner,FeatureVectorCreator.mergeValue,FeatureVectorCreator.mergeCombiners).map(x => FeatureVectorCreator.toDense(x._1,x._2))
+      .combineByKey(FeatureVectorCreator.createCombiner,FeatureVectorCreator.mergeValue,FeatureVectorCreator.mergeCombiners)
       //.reduceByKey(FeatureVectorCreator.Combine(_,_)).map(x => FeatureVectorCreator.toDense(x._1,x._2))
       doNMF match {
         case true =>
-          fvs.map(x => runNMF(x._1,x._2,x._3)).collect()
-        case false => fvs.collect()
+          fvs.map(x => FeatureVectorCreator.toDense(x._1,x._2)).map(x => runNMF(x._1,x._2,x._3)).collect()
+        case false =>
+          val r = fvs.map(x => BiMax.OurBiMax.BiMax(x._1,x._2)).collect()
+          println("done")
       }
 
     val endTime = System.currentTimeMillis() // End Timer
