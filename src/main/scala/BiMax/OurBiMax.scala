@@ -1,7 +1,10 @@
 package BiMax
 
 
-import Explorer.Types.SchemaName
+import Explorer.{Attribute, JsonExtractionSchema}
+import Explorer.Types.{AttributeName, SchemaName}
+import Viz.BiMaxViz
+import org.jgrapht.graph.{DefaultDirectedGraph, DefaultEdge, DefaultUndirectedGraph}
 
 import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
@@ -80,8 +83,8 @@ object OurBiMax {
 
 
   // now rewrite the tree based on our heuristic
-
-  type RewrittenBiMaxNode = ListBuffer[ListBuffer[(Row,ListBuffer[Row])]]
+  // ListOfDisjointNodes[ListOfNodes[(CombinedRow,ContributingRows)]]
+  type RewrittenBiMaxNode = ListBuffer[ListBuffer[(Row,ListBuffer[Row])]] // (unionedRow,Rows that contributed to the union)
 
   // merges all rows together
   private def combine(rbn: RewrittenBiMaxNode): RewrittenBiMaxNode = {
@@ -145,8 +148,47 @@ object OurBiMax {
 
   // finally apply the visualization heuristic
 
+  case class entity(mandatoryAttributes: mutable.HashSet[Int], optionalAttributes: mutable.HashSet[Int], featureVectors: ListBuffer[(mutable.HashSet[Int],Int)], combinedMult: Int)
 
-  private def test(): Unit = {
+  // list of disjoint sets
+  def categorizeAttributes(schemaName: SchemaName, RBNS: ListBuffer[RewrittenBiMaxNode]): (SchemaName, ListBuffer[ListBuffer[entity]]) = {
+    val entities: ListBuffer[ListBuffer[entity]] = RBNS.map(rbn => { // rbn is a list of nodes
+      rbn.map( node => {
+        val (mandatory, optional, coll, combinedMult) = node.foldLeft(node.head._1._1.clone(),node.head._1._1.clone(),ListBuffer[(mutable.HashSet[Int],Int)](),0){case((mandatory, optional, coll, combinedMult),(maxNode, nodeSet)) => {
+          (nodeSet :+ maxNode).foldLeft(mandatory,optional,coll,combinedMult){case((m,opt,coll,mult),v)=> {
+            coll+=Tuple2(v._1,v._2)
+            (v._1.intersect(m),v._1.union(opt),coll,mult+v._2)
+          }}
+          (mandatory, optional, coll, combinedMult)
+        }}
+        new entity(mandatory,optional,coll, combinedMult)
+      })
+    })
+    (schemaName,entities)
+  }
+
+  import org.jgrapht._
+  def buildGraph(schemaName: SchemaName, disjEntities: ListBuffer[ListBuffer[entity]]): (SchemaName, Graph[mutable.HashSet[Int],DefaultEdge]) = {
+    val g: Graph[mutable.HashSet[Int], DefaultEdge] = new DefaultUndirectedGraph[mutable.HashSet[Int], DefaultEdge](new DefaultEdge().getClass)
+    disjEntities.foreach(n => {
+      n.foreach(e => {
+        val fields = e.mandatoryAttributes ++ e.optionalAttributes
+        g.addVertex(fields)
+        e.mandatoryAttributes.foreach(i => {
+          val s = new mutable.HashSet[Int]()
+          s += i
+          if(!g.containsVertex(s)){
+            g.addVertex(s)
+          }
+          g.addEdge(s,fields)
+        })
+      })
+    })
+    (schemaName,g)
+  }
+
+
+  def test(): Unit = {
     val testMatrix: mutable.HashMap[mutable.ArrayBuffer[Byte],Int] =  mutable.HashMap[mutable.ArrayBuffer[Byte],Int]()
     testMatrix.put(mutable.ArrayBuffer[Byte](1,1,1,0,0),5)
     testMatrix.put(mutable.ArrayBuffer[Byte](1,0,1,0,0),4)
@@ -157,6 +199,20 @@ object OurBiMax {
 
     val (r,r1) = OurBiMax.BiMax(ListBuffer[Any]("test"),testMatrix)
     val r2 = OurBiMax.convertBiMaxNodes(r,r1)
+    val r3 = OurBiMax.categorizeAttributes(r2._1,r2._2)
+    val r4 = OurBiMax.buildGraph(r3._1,r3._2)
+
+    val attributes: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute] = scala.collection.mutable.HashMap[AttributeName,Attribute]()
+    val schema = new JsonExtractionSchema()
+    schema.attributeLookup = new scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Int]()
+    schema.attributeLookup.put(ListBuffer[Any]("a"),0)
+    schema.attributeLookup.put(ListBuffer[Any]("b"),1)
+    schema.attributeLookup.put(ListBuffer[Any]("c"),2)
+    schema.attributeLookup.put(ListBuffer[Any]("d"),3)
+    schema.attributeLookup.put(ListBuffer[Any]("e"),4)
+
+    BiMaxViz.viz(schema, r4._2)
+
     println("done")
   }
 

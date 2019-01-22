@@ -14,7 +14,10 @@ libraryDependencies ++= Seq(
   "com.github.fommil.netlib" % "all" % "1.1.2" pomOnly(),
 
   // Spark
-  "org.apache.spark" %% "spark-core" % "2.3.2"
+  "org.apache.spark" %% "spark-core" % "2.3.2",
+
+  "org.jgrapht" % "jgrapht-core" % "1.3.0",
+  "org.jgrapht" % "jgrapht-io" % "1.3.0"
 )
 
 test in assembly := {}

@@ -11,7 +11,7 @@ import Optimizer.Planner
 import breeze.linalg.{*, DenseMatrix, DenseVector}
 import org.apache.spark.rdd.RDD
 import NMF.NMFBiCluster_Scala
-import Viz.PlannerFrame
+import Viz.{BiMaxViz, PlannerFrame}
 import javax.swing.border.{CompoundBorder, EmptyBorder, LineBorder}
 import javax.swing.{JFrame, JPanel}
 import org.apache.spark.storage.StorageLevel
@@ -32,7 +32,7 @@ object SparkMain {
 
   def main(args: Array[String]) = {
 
-    
+
     val(inputFile, memory, useUI, doNMF,spark) = readArgs(args) // Creates the Spark session with its config values.
 
     val startTime = System.currentTimeMillis() // Start timer
@@ -98,7 +98,8 @@ object SparkMain {
         case true =>
           fvs.map(x => FeatureVectorCreator.toDense(x._1,x._2)).map(x => runNMF(x._1,x._2,x._3)).collect()
         case false =>
-          val r = fvs.map(x => BiMax.OurBiMax.BiMax(x._1,x._2)).collect()
+          val r = fvs.map(x => BiMax.OurBiMax.BiMax(x._1,x._2)).map(x => BiMax.OurBiMax.convertBiMaxNodes(x._1,x._2)).map(x => BiMax.OurBiMax.categorizeAttributes(x._1,x._2)).map(x => BiMax.OurBiMax.buildGraph(x._1,x._2)).collect()
+          r.foreach(x => BiMaxViz.viz(root.Schemas.get(x._1).get,x._2))
           println("done")
       }
 
