@@ -1,6 +1,7 @@
 package JsonExplorer
 
 import java.awt.{BorderLayout, Color, Dimension, GridLayout}
+import java.io.{BufferedWriter, File, FileWriter}
 import java.util
 
 import BiMax.OurBiMax
@@ -27,10 +28,24 @@ import scala.collection.mutable
 
 object SparkMain {
 
+  def github(): Unit = {
+    val file = new File("C:\\Users\\Will\\Desktop\\JsonData\\github\\github100k.json")
+    val bw = new BufferedWriter(new FileWriter(file))
+    for( a <- 1 to 10){
+      bw.write(scala.io.Source.fromFile("C:\\Users\\Will\\Desktop\\JsonData\\github\\github"+a.toString+".json").mkString+'\n')
+      println(a)
+    }
+    bw.close()
+    ???
+  }
+
+
 
   var plannerFrame: PlannerFrame = null
 
   def main(args: Array[String]) = {
+
+    //github()
 
 
     val(inputFile, memory, useUI, doNMF,spark) = readArgs(args) // Creates the Spark session with its config values.

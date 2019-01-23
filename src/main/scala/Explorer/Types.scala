@@ -204,9 +204,9 @@ object Types {
       return "root"
     val nameString = name.foldLeft("")((acc,n)=>{
       n match {
-        case s:String => acc + s + "_"
-        case i: Int => acc + s"""[$i]"""
-        case Star => acc + s"""[]"""
+        case s:String => acc + s.replace("-","").replace(":","").replace(";","") + "_"
+        case i: Int => acc + s"""_${i}_"""
+        case Star => acc + s"""_star_"""
       }
     })
     if(nameString.last.equals('_'))

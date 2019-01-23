@@ -1,14 +1,14 @@
 package Viz
 
-import java.io.{File, StringWriter, Writer}
 
 import Explorer.{JsonExtractionSchema, Types}
 import org.jgrapht.Graph
 import org.jgrapht.graph.DefaultEdge
-import org.jgrapht.io.{ComponentNameProvider, DOTExporter, GraphExporter}
 
 import scala.collection.mutable
 import scala.collection.JavaConverters._
+
+import java.io.PrintWriter
 
 object BiMaxViz {
 
@@ -29,9 +29,14 @@ object BiMaxViz {
     val t = schema.attributeLookup.map(x => (x._2,x._1))
     val nodes: List[String] = g.vertexSet().asScala.map{case(manditory,optional) => {
       if(optional == null){ // This is a primary/foreign key node
-        s"""${manditory.map(x => Types.nameToFileString(t.get(x).get)).mkString("")} [ label = "${manditory.map(x => Types.nameToString(t.get(x).get)).mkString("\n")}" ];"""
+        s"""${manditory.map(x => Types.nameToFileString(t.get(x).get)).mkString("")} [ label = "${manditory.map(x => Types.nameToString(t.get(x).get)).mkString("\\n")}" ];"""
       } else {
-        s"""${manditory.map(x => Types.nameToFileString(t.get(x).get)).mkString("")}${optional.map(x => Types.nameToFileString(t.get(x).get)).mkString("")} [ label = "${manditory.map(x => Types.nameToString(t.get(x).get)).mkString("\n")}\n${optional.map(x => Types.nameToString(t.get(x).get)).mkString("\n")}" ];"""
+        val sorted: List[(String,Int)] = (manditory.map(x => (Types.nameToString(t.get(x).get),0)).toList ++ optional.map(x => (Types.nameToString(t.get(x).get),1)).toList).sortBy(_._1)
+        s"""${manditory.map(x => Types.nameToFileString(t.get(x).get)).mkString("")}${optional.map(x => Types.nameToFileString(t.get(x).get)).mkString("")} [ shape=box label = """+
+          s"""<<table border="0" cellborder="1" cellspacing="0">\n""" +
+          s"""${sorted.map(x => if(x._2 == 0) "<tr><td><u>"+x._1+"</u></td></tr>" else "<tr><td>"+x._1+"</td></tr>").mkString("\\n")}""" +
+          s"""\n</table>>];"""
+
       }
     }}.toList
 
@@ -55,7 +60,7 @@ object BiMaxViz {
       s"""${source} --  ${target};"""
     }}.toList
 
-    return "graph {" + nodes.mkString("\n") + edges.mkString("\n") +"}"
+    return "graph {\n" + nodes.mkString("\n") + edges.mkString("\n") +"\n}"
   }
 
 
@@ -63,38 +68,6 @@ object BiMaxViz {
   // graph is manditory set then optional set, optional set is null is the flag that it's a primary_key/foreign_key group
   def viz(schema: JsonExtractionSchema, g: Graph[(mutable.HashSet[Int],mutable.HashSet[Int]),DefaultEdge]): Unit = {
     removeExtraNodes(g)
-    /*
-    val vertexIdProvider: ComponentNameProvider[(mutable.HashSet[Int],mutable.HashSet[Int])] = new ComponentNameProvider[(mutable.HashSet[Int],mutable.HashSet[Int])]()
-    {
-      def getName(set:(mutable.HashSet[Int],mutable.HashSet[Int])): String =
-      {
-        if(set._2 == null){
-          return set._1.map(t.get(_).get.mkString("_").replace(":", "").replace("-", "")).mkString("n")
-        } else {
-          return set._1.map(t.get(_).get.mkString("_").replace(":", "").replace("-", "")).mkString("n") + (set._2--set._1).map(t.get(_).get.mkString("_").replace(":", "").replace("-", "")).mkString("n")
-        }
-      }
-    }
-
-    val vertexLabelProvider: ComponentNameProvider[(mutable.HashSet[Int],mutable.HashSet[Int])] = new ComponentNameProvider[(mutable.HashSet[Int],mutable.HashSet[Int])]()
-    {
-      def getName(set:(mutable.HashSet[Int],mutable.HashSet[Int])): String =
-      {
-        if(set._2 == null) {
-          return set._1.map(t.get(_).get.mkString("_")).mkString("\\n")
-        } else {
-          return set._1.map(t.get(_).get.mkString("_")).mkString("\\n") + (set._2--set._1).map(t.get(_).get.mkString("_")).mkString("\\n")
-        }
-      }
-    }
-
-    val exporter: GraphExporter[(mutable.HashSet[Int],mutable.HashSet[Int]), DefaultEdge] = new DOTExporter[(mutable.HashSet[Int],mutable.HashSet[Int]), DefaultEdge](vertexIdProvider, vertexLabelProvider, null)
-    val writer = new File("DotGraphs/"+Types.nameToFileString(schema.parent)+".dot")
-    //val writer: Writer = new StringWriter()
-    exporter.exportGraph(g, writer)
-    //System.out.println(writer.toString())
-*/
-    import java.io.PrintWriter
     new PrintWriter("DotGraphs/"+Types.nameToFileString(schema.parent)+".dot") { write(makeDot(schema, g)); close }
   }
 }
