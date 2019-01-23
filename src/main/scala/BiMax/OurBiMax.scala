@@ -52,7 +52,8 @@ object OurBiMax {
       return None
     }
 
-    val rows: ListBuffer[Row] = (comIn ++ disjIn).sortBy(x => (x._3,-x._2))
+    //val rows: ListBuffer[Row] = (comIn ++ disjIn).sortBy(x => (x._3,-x._2))
+    val rows: ListBuffer[Row] = (comIn ++ disjIn).sortBy(x => (x._3,-x._1.size))
     val (maxRow,sub,com,dis) = rowComputation(rows)
 
     return Some(BiMaxNode(maxRow, sub, com, dis, biMaxTailComputation(com,dis,BiMaxList)))
@@ -63,7 +64,8 @@ object OurBiMax {
     if(in.isEmpty) // sanity check
       return // don't add anything
 
-    val rows: ListBuffer[Row] = in.sortBy(-_._2) // descending order
+    //val rows: ListBuffer[Row] = in.sortBy(-_._2) // descending order
+    val rows: ListBuffer[Row] = in.sortBy(-_._1.size) // descending order
     val (maxRow,sub,com,dis) = rowComputation(rows)
 
     BiMaxList += BiMaxNode(maxRow, sub, com, dis, biMaxTailComputation(com,dis,BiMaxList))
@@ -156,10 +158,13 @@ object OurBiMax {
       rbn.map( node => {
         val (mandatory, optional, coll, combinedMult) = node.foldLeft(node.head._1._1.clone(),node.head._1._1.clone(),ListBuffer[(mutable.HashSet[Int],Int)](),0){case((mandatory, optional, coll, combinedMult),(maxNode, nodeSet)) => {
           (nodeSet :+ maxNode).foldLeft(mandatory,optional,coll,combinedMult){case((m,opt,coll,mult),v)=> {
-            coll+=Tuple2(v._1,v._2)
-            (v._1.intersect(m),v._1.union(opt),coll,mult+v._2)
+            if(v._1.isEmpty) {
+              (m,opt,coll,mult)
+            } else {
+              coll += Tuple2(v._1, v._2)
+              (v._1.intersect(m), v._1.union(opt), coll, mult + v._2)
+            }
           }}
-          (mandatory, optional, coll, combinedMult)
         }}
         new entity(mandatory,optional,coll, combinedMult)
       })
@@ -168,19 +173,19 @@ object OurBiMax {
   }
 
   import org.jgrapht._
-  def buildGraph(schemaName: SchemaName, disjEntities: ListBuffer[ListBuffer[entity]]): (SchemaName, Graph[mutable.HashSet[Int],DefaultEdge]) = {
-    val g: Graph[mutable.HashSet[Int], DefaultEdge] = new DefaultUndirectedGraph[mutable.HashSet[Int], DefaultEdge](new DefaultEdge().getClass)
+  def buildGraph(schemaName: SchemaName, disjEntities: ListBuffer[ListBuffer[entity]]): (SchemaName, Graph[(mutable.HashSet[Int],mutable.HashSet[Int]),DefaultEdge]) = {
+    val g: Graph[(mutable.HashSet[Int],mutable.HashSet[Int]), DefaultEdge] = new DefaultUndirectedGraph[(mutable.HashSet[Int],mutable.HashSet[Int]), DefaultEdge](new DefaultEdge().getClass)
     disjEntities.foreach(n => {
       n.foreach(e => {
-        val fields = e.mandatoryAttributes ++ e.optionalAttributes
+        val fields = Tuple2(e.mandatoryAttributes,e.optionalAttributes--e.mandatoryAttributes)
         g.addVertex(fields)
         e.mandatoryAttributes.foreach(i => {
           val s = new mutable.HashSet[Int]()
           s += i
-          if(!g.containsVertex(s)){
-            g.addVertex(s)
+          if(!g.containsVertex(Tuple2(s,null))){
+            g.addVertex(Tuple2(s,null))
           }
-          g.addEdge(s,fields)
+          g.addEdge(Tuple2(s,null),fields)
         })
       })
     })
@@ -204,6 +209,7 @@ object OurBiMax {
 
     val attributes: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute] = scala.collection.mutable.HashMap[AttributeName,Attribute]()
     val schema = new JsonExtractionSchema()
+    schema.parent = ListBuffer[Any]("test")
     schema.attributeLookup = new scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Int]()
     schema.attributeLookup.put(ListBuffer[Any]("a"),0)
     schema.attributeLookup.put(ListBuffer[Any]("b"),1)
