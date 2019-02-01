@@ -1,51 +1,23 @@
 package JsonExplorer
 
-import java.awt.{BorderLayout, Color, Dimension, GridLayout}
-import java.io.{BufferedWriter, File, FileWriter}
-import java.util
+import java.io._
 
-import BiMax.OurBiMax
 import Explorer.Types.{AttributeName, SchemaName}
 import Explorer._
 import org.apache.spark.{SparkConf, SparkContext}
-import Optimizer.Planner
-import breeze.linalg.{*, DenseMatrix, DenseVector}
 import org.apache.spark.rdd.RDD
-import NMF.NMFBiCluster_Scala
 import Viz.{BiMaxViz, PlannerFrame}
-import javax.swing.border.{CompoundBorder, EmptyBorder, LineBorder}
-import javax.swing.{JFrame, JPanel}
 import org.apache.spark.storage.StorageLevel
-import smile.data.AttributeDataset
-import smile.plot.{PlotCanvas, PlotPanel, Window}
-
-import scala.collection.mutable.ListBuffer
-import scala.collection.JavaConverters._
-import scala.collection.mutable
 
 
 
 
 object SparkMain {
 
-  def github(): Unit = {
-    val file = new File("C:\\Users\\Will\\Desktop\\JsonData\\github\\github100k.json")
-    val bw = new BufferedWriter(new FileWriter(file))
-    for( a <- 1 to 10){
-      bw.write(scala.io.Source.fromFile("C:\\Users\\Will\\Desktop\\JsonData\\github\\github"+a.toString+".json").mkString+'\n')
-      println(a)
-    }
-    bw.close()
-    ???
-  }
-
-
 
   var plannerFrame: PlannerFrame = null
 
   def main(args: Array[String]) = {
-
-    //github()
 
 
     val(inputFile, memory, useUI, doNMF,spark) = readArgs(args) // Creates the Spark session with its config values.
@@ -70,12 +42,6 @@ object SparkMain {
       case None => // don't cache at all
     }
 
-    /*
-    val serializedRecords: RDD[JsonExplorerType] = records
-      .filter(x => (x.size > 0 && x.charAt(0).equals('{'))) // filter out lines that aren't Json
-      .mapPartitions(x => Serializer.serialize(x)) // serialize output
-      */
-      //.persist(StorageLevel.DISK_ONLY) // persist allows the serialized rdd to exist for the fv creation process
 
     /*
       Preform the extraction phase:
@@ -111,7 +77,7 @@ object SparkMain {
       //.reduceByKey(FeatureVectorCreator.Combine(_,_)).map(x => FeatureVectorCreator.toDense(x._1,x._2))
       doNMF match {
         case true =>
-          fvs.map(x => FeatureVectorCreator.toDense(x._1,x._2)).map(x => runNMF(x._1,x._2,x._3)).collect()
+          fvs.map(x => FeatureVectorCreator.toDense(x._1,x._2)).map(x => NMF.RunNMF.runNMF(root.Schemas.get(x._1).get,x._2,x._3)).collect()
         case false =>
           val r = fvs.map(x => BiMax.OurBiMax.BiMax(x._1,x._2)).map(x => BiMax.OurBiMax.convertBiMaxNodes(x._1,x._2)).map(x => BiMax.OurBiMax.categorizeAttributes(x._1,x._2)).map(x => BiMax.OurBiMax.buildGraph(x._1,x._2)).collect()
           r.foreach(x => BiMaxViz.viz(root.Schemas.get(x._1).get,x._2))
@@ -127,77 +93,6 @@ object SparkMain {
 
   }
 
-
-  // coverage, column order, row order
-  def runNMF(name: SchemaName, fvs: DenseMatrix[Double], mults: DenseVector[Double]): (Int,Array[Int],Array[Int]) = {
-    //path to data directory
-    if(fvs.data.isEmpty)
-      return (0,null,null)
-
-    val orig = fvs(*, ::).map( dv => dv.toArray).toArray
-
-    val c = new NMFBiCluster_Scala(fvs, mults)
-    //sanity check whether function getFeatureGroupMembershipConfidence works as expected
-    //Output of getFeatureGroupMembershipConfidence() is a vector of length K, each i-th (i=1,...,K) value is within [0,1] indicating the membership confidence of feature group i
-    //val reconstructed = c.basisVectors * c.projectedMatrix
-    val orginal = c.dataMatrix_smile.t
-    for (i <- 0 until orginal.cols){
-      val vec = orginal(::,i)
-      val vecArray = vec.toArray
-      //get feature group confidences
-      val vec1 = c.getFeatureGroupMembershipConfidence(vecArray)
-
-      val reconstucted = c.basisVectors*vec1
-      val diffvec = vec-reconstucted
-      val thresh = 0.2
-      val aha = diffvec >:> thresh
-      val wuhu = diffvec <:< -thresh
-      implicit def bool2double(b: Boolean): Double = if (b) 1.0 else 0.0
-      val ahaha = aha.map(x => bool2double(x))
-      val wuhuhu = wuhu.map(x => bool2double(x))
-
-    }
-/*
-    val numClusters = 2
-    val numIterations = 20
-    val clusters = smile.clustering.KMeans.lloyd(orig,numClusters,numIterations)
-    val clusterLabels = clusters.getClusterLabel
-    val c1 = orig.zip(clusterLabels).sortBy(_._2).map(_._1)
-
-    val d = fvs(*, ::).map( dv => dv.toArray.zip(c.getFeatureOrder()).sortBy(_._2).map(_._1)).toArray.zip(c.getDataOrder()).sortBy(_._2).map(_._1)
-
-    val frame: JFrame = new JFrame(Types.nameToString(name))
-    frame.setPreferredSize(new Dimension(3000, 1500))
-    frame.setLayout(new GridLayout(1,2))
-
-    val p1 = smile.plot.heatmap(orig)
-    val p3 = smile.plot.heatmap(c1)
-    val p2 = smile.plot.heatmap(d)
-
-    p1.close
-    p2.close
-    p3.close
-
-    p1.canvas.setTitle("Original")
-    p3.canvas.setTitle("KMeans k=" + numClusters.toString)
-    p2.canvas.setTitle("Reshaped")
-
-    frame.getContentPane.add(p1.canvas)
-    frame.getContentPane.add(p3.canvas)
-    frame.getContentPane.add(p2.canvas)
-
-    p1.canvas.reset()
-    p2.canvas.reset()
-    p3.canvas.reset()
-
-    frame.pack()
-    frame.setVisible(true)
-
-*/
-
-    //(c.getCoverage(),c.getFeatureOrder(),c.getDataOrder())
-    (0,c.getFeatureOrder(),c.getDataOrder())
-  }
 
   def readArgs(args: Array[String]): (String,Option[Boolean],Boolean,Boolean,SparkContext) = {
     if(args.size == 0 || args.size%2 == 0) {
@@ -235,5 +130,47 @@ object SparkMain {
     (filename, memory, ui, nmf,spark)
   }
 
+  // these are special parsers for our data just to get things running, will replace with better solution for recall tests
+
+  def github(): Unit = {
+    val file = new File("C:\\Users\\Will\\Desktop\\JsonData\\github\\github100k.json")
+    val bw = new BufferedWriter(new FileWriter(file))
+    for( a <- 1 to 100){
+      bw.write(scala.io.Source.fromFile("C:\\Users\\Will\\Desktop\\JsonData\\github\\github"+a.toString+".json").mkString+'\n')
+      println(a)
+    }
+    bw.close()
+    ???
+  }
+
+
+  def clean(inputName: String, rowLimit: Int = 0): Unit = {
+    val in = new File(inputName)
+    val br = new BufferedReader(new FileReader(in))
+    val out = new File(inputName+"out")
+    val bw = new BufferedWriter(new FileWriter(out))
+    var rowCount: Int = 0
+    var wrongCount: Int = 0
+    var line: String = null
+    var break: Boolean = false
+    while(((rowCount < rowLimit) || (rowLimit == 0)) && ((line = br.readLine())!= null) && !break){
+      if(line != null && line.size > 1 && (line.charAt(0).equals('{') && line.charAt(line.size-1).equals('}'))) {
+        bw.write(line + '\n')
+        rowCount += 1
+        if(rowCount % 100000 == 0)
+          println(rowCount.toString + " rows so far" + wrongCount.toString + " wrong lines found")
+      } else {
+        wrongCount += 1
+        if(wrongCount%100 == 0) {
+          break = true
+          System.err.println(wrongCount.toString + " wrong lines found")
+        }
+      }
+    }
+    println(rowCount)
+    br.close()
+    bw.close()
+    ???
+  }
 
 }

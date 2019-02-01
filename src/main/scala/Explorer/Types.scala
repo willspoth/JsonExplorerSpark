@@ -163,7 +163,13 @@ case class JE_Obj_Array(xs:ListBuffer[JsonExplorerType]) extends JsonExplorerTyp
 }
 case object JE_Basic extends JsonExplorerType {
   def getType: JsonExplorerType = JE_Basic
-  def id: Int = 11
+  def id: Int = 12
+}
+
+case class JE_Basic(xs: scala.collection.mutable.HashMap[JsonExplorerType,Int]) extends JsonExplorerType {
+  def unapply(arg: JE_Basic): Option[scala.collection.mutable.HashMap[JsonExplorerType,Int]] = return Some(xs)
+  def getType: JsonExplorerType = JE_Basic
+  def id: Int = 12
 }
 
 
