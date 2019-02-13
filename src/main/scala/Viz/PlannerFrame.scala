@@ -55,14 +55,14 @@ class PlannerFrame(root:JsonExtractionRoot, useUI: Boolean) extends JFrame {
       this.setSize (2000, 1500)
 
       //this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE)
-      this.setLayout (new FlowLayout () )
+      //this.setLayout (new FlowLayout () )
       this.setVisible (true)
 
       graphsPanel.add (treePanel)
       graphsPanel.add (entropyChart.canvas)
-      graphsPanel.setPreferredSize (graphsPanel.getPreferredSize)
+      graphsPanel.setPreferredSize(graphsPanel.getPreferredSize)
 
-      this.getContentPane.add (graphsPanel)
+      this.getContentPane.add(graphsPanel)
 
       val kseInput = new JTextField (kse_threshold.toString)
       kseInput.addActionListener (new tryNewKSE (operatorConverter, kseInput, graphsPanel) )
@@ -77,7 +77,7 @@ class PlannerFrame(root:JsonExtractionRoot, useUI: Boolean) extends JFrame {
       buttonsPanel.add (doneButton)
       buttonsPanel.setPreferredSize (buttonsPanel.getPreferredSize)
 
-      this.getContentPane.add (buttonsPanel)
+      //this.getContentPane.add (buttonsPanel)
 
       while (! plannerDone) {
         val donothing = true

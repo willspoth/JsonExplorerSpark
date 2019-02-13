@@ -8,8 +8,13 @@ import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.rdd.RDD
 import Viz.{BiMaxViz, PlannerFrame}
 import org.apache.spark.storage.StorageLevel
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.types.{ArrayType, StructField, StructType}
+import org.jgrapht.Graph
+import org.jgrapht.graph.DefaultEdge
 
-
+import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 
 
 object SparkMain {
@@ -19,12 +24,45 @@ object SparkMain {
 
   def main(args: Array[String]) = {
 
+    /*
+    val mas = scala.collection.mutable.HashMap[(ListBuffer[Any],(scala.collection.mutable.HashSet[Int],scala.collection.mutable.HashSet[Int])),Int]()
+    val l = scala.collection.mutable.HashSet[Int](1,2,3)
+    val ro = ListBuffer[Any]()
+    val lb1 = ListBuffer[Any]("test","one")
+    val lb2 = ListBuffer[Any]("test","two")
+    val r = scala.collection.mutable.HashSet[Int]()
+    mas.put((lb1,(l,r)),1)
+    println(mas.contains((ro,(l,r))))
+    println(mas.contains((lb1,(l,r))))
+    println(mas.contains((lb2,(l,r))))
 
-    val(inputFile, memory, useUI, doNMF,spark) = readArgs(args) // Creates the Spark session with its config values.
+
+    ???
+    */
+
+    val(inputFile, memory, useUI, doNMF,spark,name) = readArgs(args) // Creates the Spark session with its config values.
+
+    """
+    val j = spark.read.json(inputFile)
+    var attributes: Int = 0
+    //val s = new StructField(null,null,null).getClass
+    def countAttr(f: StructField): Unit = {
+      f.dataType match {
+        case f2: StructType => f2.fields.foreach(countAttr(_))
+        case arr: ArrayType => arr.elementType
+        case _ => attributes += 1
+      }
+    }
+    j.printSchema()
+    j.schema.toList.foreach(countAttr(_))
+    println(attributes)
+    """
+
+
 
     val startTime = System.currentTimeMillis() // Start timer
 
-    val records: RDD[String] = spark.textFile(inputFile) // read file
+    val records: RDD[String] = spark.sparkContext.textFile(inputFile) // read file
 
     /*
       Serialize the input file into JsonExplorerTypes while keeping the JSON tree structure.
@@ -79,8 +117,14 @@ object SparkMain {
         case true =>
           fvs.map(x => FeatureVectorCreator.toDense(x._1,x._2)).map(x => NMF.RunNMF.runNMF(root.Schemas.get(x._1).get,x._2,x._3)).collect()
         case false =>
-          val r = fvs.map(x => BiMax.OurBiMax.BiMax(x._1,x._2)).map(x => BiMax.OurBiMax.convertBiMaxNodes(x._1,x._2)).map(x => BiMax.OurBiMax.categorizeAttributes(x._1,x._2)).map(x => BiMax.OurBiMax.buildGraph(x._1,x._2)).collect()
-          r.foreach(x => BiMaxViz.viz(root.Schemas.get(x._1).get,x._2))
+          val r = fvs.map(x => BiMax.OurBiMax.BiMax(x._1,x._2)).map(x => BiMax.OurBiMax.convertBiMaxNodes(x._1,x._2)).map(x => BiMax.OurBiMax.categorizeAttributes(x._1,x._2)).map(x => BiMax.OurBiMax.computeStatistics(x._1,x._2)).collect()
+          /*
+          println("Precision: "+r.foldLeft(1){case(acc,p) =>
+            acc*p._3.get("precision").get.asInstanceOf[Int]
+          }.toString()) // combine precision
+          */
+          val graphViz = new Viz.BiMaxViz()
+          graphViz.viz(name,root,r.map(x => BiMax.OurBiMax.buildGraph(x._1,x._2)))//root.Schemas.get(x._1).get,x._2))
           println("done")
       }
 
@@ -94,7 +138,7 @@ object SparkMain {
   }
 
 
-  def readArgs(args: Array[String]): (String,Option[Boolean],Boolean,Boolean,SparkContext) = {
+  def readArgs(args: Array[String]): (String,Option[Boolean],Boolean,Boolean,SparkSession,String) = {
     if(args.size == 0 || args.size%2 == 0) {
       println("Unexpected Argument, should be, filename -master xxx -name xxx -sparkinfo xxx -sparkinfo xxx")
       System.exit(0)
@@ -105,10 +149,12 @@ object SparkMain {
       val argPairs = args.tail.zip(args.tail.tail).zipWithIndex.filter(_._2%2==0).map(_._1).foreach(x=>argMap.put(x._1.tail,x._2))
     }
     val conf = new SparkConf().setMaster(argMap.get("master").get).setAppName(argMap.get("name").get)
+    val name = argMap.get("name").get
     argMap.remove("master")
     argMap.remove("name")
     argMap.foreach(x => conf.set(x._1,x._2))
-    val spark: SparkContext = new SparkContext(conf)
+
+    val spark: SparkSession = org.apache.spark.sql.SparkSession.builder.config(conf).getOrCreate()
     val memory: Option[Boolean] = argMap.get("memory") match {
       case Some("memory" | "inmemory" | "true" | "t" | "y" | "yes") => Some(true)
       case Some("n" | "no" | "false" | "disk") => Some(false)
@@ -127,13 +173,13 @@ object SparkMain {
       case _ | None => false
     }
 
-    (filename, memory, ui, nmf,spark)
+    (filename, memory, ui, nmf,spark,name)
   }
 
   // these are special parsers for our data just to get things running, will replace with better solution for recall tests
 
   def github(): Unit = {
-    val file = new File("C:\\Users\\Will\\Desktop\\JsonData\\github\\github100k.json")
+    val file = new File("C:\\Users\\Will\\Desktop\\JsonData\\github1m.json")
     val bw = new BufferedWriter(new FileWriter(file))
     for( a <- 1 to 100){
       bw.write(scala.io.Source.fromFile("C:\\Users\\Will\\Desktop\\JsonData\\github\\github"+a.toString+".json").mkString+'\n')

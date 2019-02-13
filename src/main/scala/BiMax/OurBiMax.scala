@@ -1,10 +1,10 @@
 package BiMax
 
 
-import Explorer.{Attribute, JsonExtractionSchema}
+import Explorer.{Attribute, JsonExtractionSchema, Types}
 import Explorer.Types.{AttributeName, SchemaName}
 import Viz.BiMaxViz
-import org.jgrapht.graph.{DefaultDirectedGraph, DefaultEdge, DefaultUndirectedGraph}
+import org.jgrapht.graph.{DefaultEdge, DefaultUndirectedGraph}
 
 import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
@@ -192,6 +192,18 @@ object OurBiMax {
     (schemaName,g)
   }
 
+  def computeStatistics(schemaName: SchemaName, disjEntities: ListBuffer[ListBuffer[entity]]): (SchemaName, ListBuffer[ListBuffer[entity]], mutable.HashMap[String,Any]) = {
+    val stats: mutable.HashMap[String,Any] = mutable.HashMap[String,Any]()
+    stats.put("schemaName",Types.nameToString(schemaName))
+    val precision: Int = scala.math.max(disjEntities.foldLeft(0){case(disjCount,ent) => {
+      disjCount + ent.foldLeft(0){case(entCount,subEnt) => {
+        entCount + scala.math.pow(2,(subEnt.optionalAttributes--subEnt.mandatoryAttributes).size).toInt
+      }}
+    }},1)
+    stats.put("precision",precision)
+    (schemaName,disjEntities,stats)
+  }
+
 
   def test(): Unit = {
     val testMatrix: mutable.HashMap[mutable.ArrayBuffer[Byte],Int] =  mutable.HashMap[mutable.ArrayBuffer[Byte],Int]()
@@ -217,7 +229,7 @@ object OurBiMax {
     schema.attributeLookup.put(ListBuffer[Any]("d"),3)
     schema.attributeLookup.put(ListBuffer[Any]("e"),4)
 
-    BiMaxViz.viz(schema, r4._2)
+    //BiMaxViz.viz(schema, r4._2)
 
     println("done")
   }
