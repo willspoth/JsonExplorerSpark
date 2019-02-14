@@ -1,6 +1,7 @@
 package JsonExplorer
 
 import java.io._
+import java.util.Calendar
 
 import Explorer.Types.{AttributeName, SchemaName}
 import Explorer._
@@ -22,25 +23,14 @@ object SparkMain {
 
   var plannerFrame: PlannerFrame = null
 
-  def main(args: Array[String]) = {
-
-    /*
-    val mas = scala.collection.mutable.HashMap[(ListBuffer[Any],(scala.collection.mutable.HashSet[Int],scala.collection.mutable.HashSet[Int])),Int]()
-    val l = scala.collection.mutable.HashSet[Int](1,2,3)
-    val ro = ListBuffer[Any]()
-    val lb1 = ListBuffer[Any]("test","one")
-    val lb2 = ListBuffer[Any]("test","two")
-    val r = scala.collection.mutable.HashSet[Int]()
-    mas.put((lb1,(l,r)),1)
-    println(mas.contains((ro,(l,r))))
-    println(mas.contains((lb1,(l,r))))
-    println(mas.contains((lb2,(l,r))))
+  def main(args: Array[String]): Unit = {
 
 
-    ???
-    */
+    val log: mutable.ListBuffer[LogOutput] = mutable.ListBuffer[LogOutput]()
 
-    val(inputFile, memory, useUI, doNMF,spark,name) = readArgs(args) // Creates the Spark session with its config values.
+    log += LogOutput("Date",Calendar.getInstance().getTime().toString,"Date: ")
+
+    val(inputFile, memory, useUI, doNMF,spark,name,outputLog) = readArgs(args) // Creates the Spark session with its config values.
 
     """
     val j = spark.read.json(inputFile)
@@ -62,14 +52,17 @@ object SparkMain {
 
     val startTime = System.currentTimeMillis() // Start timer
 
-    val records: RDD[String] = spark.sparkContext.textFile(inputFile) // read file
+    val data: Array[RDD[String]] = spark.sparkContext.textFile(inputFile).filter(x => (x.size > 0 && x.charAt(0).equals('{'))).randomSplit(Array[Double](0.8,0.2)) // read file
+    val test: RDD[String] = data.head
+    val validation: RDD[String] = data.last
+    log += LogOutput("TestSize",test.count().toString,"TestSize: ")
+    log += LogOutput("ValidationSize",test.count().toString,"ValidationSize: ")
 
     /*
       Serialize the input file into JsonExplorerTypes while keeping the JSON tree structure.
       This can then be parsed in the feature vector creation phase without having to re-read the input file.
      */
-    val serializedRecords = records
-      .filter(x => (x.size > 0 && x.charAt(0).equals('{')))
+    val serializedRecords = test
       .mapPartitions(x=>JacksonSerializer.serialize(x))
     memory match {
       case Some(inmemory) =>
@@ -97,7 +90,7 @@ object SparkMain {
       }}.collect()
     val extractionTime = System.currentTimeMillis()
     val extractionRunTime = extractionTime - startTime
-    println("Extraction Took: " + extractionRunTime.toString + " ms")
+    //println("Extraction Took: " + extractionRunTime.toString + " ms")
 
     val root: JsonExtractionRoot = new JsonExtractionRoot()
     root.AllAttributes = scala.collection.mutable.HashMap(extracted: _*)
@@ -107,7 +100,7 @@ object SparkMain {
 
     val optimizationTime = System.currentTimeMillis()
     val optimizationRunTime = optimizationTime - extractionTime
-    println("Optimization Took: " + optimizationRunTime.toString + " ms")
+    //println("Optimization Took: " + optimizationRunTime.toString + " ms")
     // create feature vectors from this list
 
     val fvs = serializedRecords.flatMap(FeatureVectorCreator.extractFVSs(root.Schemas,_))
@@ -119,21 +112,24 @@ object SparkMain {
         case false =>
           val r = fvs.map(x => BiMax.OurBiMax.BiMax(x._1,x._2)).map(x => BiMax.OurBiMax.convertBiMaxNodes(x._1,x._2)).map(x => BiMax.OurBiMax.categorizeAttributes(x._1,x._2)).collect()
           val (g,l) = BiMax.OurBiMax.buildGraph(root,r)
-          println("Precision: "+BiMax.OurBiMax.calculatePrecision(ListBuffer[Any](),g,l).toString()) // start at root so empty ListBuffer
+          log += LogOutput("Precision",BiMax.OurBiMax.calculatePrecision(ListBuffer[Any](),g,l).toString(),"Precision: ")
           Viz.BiMaxViz.viz(name,root,g,l)
       }
 
     val endTime = System.currentTimeMillis() // End Timer
     val FVRunTime = endTime - optimizationTime
-    println("Extraction Took: " + extractionRunTime.toString + " ms")
-    println("Optimization Took: " + optimizationRunTime.toString + " ms")
-    println("FV Creation Took: " + FVRunTime.toString + " ms")
-    println("Total execution time: " + (endTime - startTime) + " ms") // Output run time in milliseconds
-
+    log += LogOutput("ExtractionTime",extractionRunTime.toString,"Extraction Took: "," ms")
+    log += LogOutput("OptimizationTime",optimizationRunTime.toString,"Optimization Took: "," ms")
+    log += LogOutput("FVCreationTime",FVRunTime.toString,"FV Creation Took: "," ms")
+    log += LogOutput("TotalTime",(endTime - startTime).toString,"Total execution time: ", " ms")
+    if(outputLog) // write out log
+      new PrintWriter("log.json") { append("{"+log.map(_.toJson).mkString(",")+"}"); close }
+    else
+      println(log.map(_.toString).mkString("\n"))
   }
 
 
-  def readArgs(args: Array[String]): (String,Option[Boolean],Boolean,Boolean,SparkSession,String) = {
+  def readArgs(args: Array[String]): (String,Option[Boolean],Boolean,Boolean,SparkSession,String,Boolean) = {
     if(args.size == 0 || args.size%2 == 0) {
       println("Unexpected Argument, should be, filename -master xxx -name xxx -sparkinfo xxx -sparkinfo xxx")
       System.exit(0)
@@ -163,12 +159,18 @@ object SparkMain {
     }
 
     val nmf: Boolean = argMap.get("nmf") match {
-      case Some("memory" | "inmemory" | "true" | "t" | "y" | "yes") => true
-      case Some("n" | "no" | "false" | "disk") => false
+      case Some("true" | "t" | "y" | "yes") => true
+      case Some("n" | "no" | "false") => false
       case _ | None => false
     }
 
-    (filename, memory, ui, nmf,spark,name)
+    val outputLog: Boolean = argMap.get("log") match {
+      case Some("true" | "t" | "y" | "yes") => true
+      case Some("n" | "no" | "false") => false
+      case _ | None => false
+    }
+
+    (filename, memory, ui, nmf,spark,name,outputLog)
   }
 
   // these are special parsers for our data just to get things running, will replace with better solution for recall tests
@@ -213,5 +215,11 @@ object SparkMain {
     bw.close()
     ???
   }
+
+  case class LogOutput(label:String, value:String, printPrefix:String, printSuffix:String = ""){
+    override def toString: String = s"""${printPrefix}${value}${printSuffix}"""
+    def toJson: String = s""""${label}":"${value}""""
+  }
+
 
 }
