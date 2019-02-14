@@ -119,6 +119,7 @@ object SparkMain {
         case false =>
           val r = fvs.map(x => BiMax.OurBiMax.BiMax(x._1,x._2)).map(x => BiMax.OurBiMax.convertBiMaxNodes(x._1,x._2)).map(x => BiMax.OurBiMax.categorizeAttributes(x._1,x._2)).collect()
           val (g,l) = BiMax.OurBiMax.buildGraph(root,r)
+          println("Precision: "+BiMax.OurBiMax.calculatePrecision(ListBuffer[Any](),g,l).toString()) // start at root so empty ListBuffer
           Viz.BiMaxViz.viz(name,root,g,l)
       }
 

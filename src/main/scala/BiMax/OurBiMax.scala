@@ -4,7 +4,7 @@ package BiMax
 import Explorer.{Attribute, JsonExtractionRoot, JsonExtractionSchema, Types}
 import Explorer.Types.{AttributeName, SchemaName}
 import Viz.BiMaxViz
-import org.jgrapht.graph.{DefaultEdge, DefaultUndirectedGraph}
+import org.jgrapht.graph.{DefaultEdge, DefaultDirectedGraph}
 
 import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
@@ -176,7 +176,7 @@ object OurBiMax {
 
 
   def buildGraph(root: JsonExtractionRoot, t:Array[(SchemaName,ListBuffer[ListBuffer[entity]])]): (Graph[(mutable.HashSet[Int],mutable.HashSet[Int],SchemaName),DefaultEdge],mutable.HashMap[SchemaName,mutable.ListBuffer[(mutable.HashSet[Int],mutable.HashSet[Int])]]) = {
-    val g: Graph[(mutable.HashSet[Int],mutable.HashSet[Int],SchemaName), DefaultEdge] = new DefaultUndirectedGraph[(mutable.HashSet[Int],mutable.HashSet[Int],SchemaName), DefaultEdge](new DefaultEdge().getClass)
+    val g: Graph[(mutable.HashSet[Int],mutable.HashSet[Int],SchemaName), DefaultEdge] = new DefaultDirectedGraph[(mutable.HashSet[Int],mutable.HashSet[Int],SchemaName), DefaultEdge](new DefaultEdge().getClass)
     val schemas: List[SchemaName] = t.toList.map(_._1)
     val lookup: mutable.HashMap[SchemaName,mutable.ListBuffer[(mutable.HashSet[Int],mutable.HashSet[Int])]] = mutable.HashMap[SchemaName,mutable.ListBuffer[(mutable.HashSet[Int],mutable.HashSet[Int])]]()
 
@@ -205,6 +205,22 @@ object OurBiMax {
     g.vertexSet().asScala.foreach(x=> g.removeEdge(x,x)) // remove self edge
 
     (g,lookup)
+  }
+
+
+  // start with empty precisionName
+  def calculatePrecision(currentSchemaName: SchemaName, g: Graph[(mutable.HashSet[Int],mutable.HashSet[Int],SchemaName),DefaultEdge], entityLookup: mutable.HashMap[SchemaName,mutable.ListBuffer[(mutable.HashSet[Int],mutable.HashSet[Int])]]): BigInt = {
+    val expressions: ListBuffer[BigInt] = entityLookup.get(currentSchemaName).get.map(entity => {
+      val v: BigInt = BigInt(2).pow(entity._2.size)
+      v*g.edgesOf(Tuple3(entity._1,entity._2,currentSchemaName)).asScala.foldLeft(BigInt(1)){case(acc,edge) => {
+        if((!g.getEdgeSource(edge).equals(g.getEdgeTarget(edge))) && g.getEdgeSource(edge)._3.equals(currentSchemaName)){
+          acc+calculatePrecision(g.getEdgeTarget(edge)._3,g,entityLookup)
+        } else { // ignore self edge
+          acc
+        }
+      }}
+    })
+    expressions.foldLeft(BigInt(1)){case(acc,v)=> acc+v} // add each entity at this level
   }
 
 
