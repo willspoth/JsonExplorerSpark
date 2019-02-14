@@ -1,13 +1,15 @@
 package BiMax
 
 
-import Explorer.{Attribute, JsonExtractionSchema, Types}
+import Explorer.{Attribute, JsonExtractionRoot, JsonExtractionSchema, Types}
 import Explorer.Types.{AttributeName, SchemaName}
 import Viz.BiMaxViz
 import org.jgrapht.graph.{DefaultEdge, DefaultUndirectedGraph}
 
 import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
+import org.jgrapht._
+import scala.collection.JavaConverters._
 
 
 object OurBiMax {
@@ -172,66 +174,38 @@ object OurBiMax {
     (schemaName,entities)
   }
 
-  import org.jgrapht._
-  def buildGraph(schemaName: SchemaName, disjEntities: ListBuffer[ListBuffer[entity]]): (SchemaName, Graph[(mutable.HashSet[Int],mutable.HashSet[Int]),DefaultEdge]) = {
-    val g: Graph[(mutable.HashSet[Int],mutable.HashSet[Int]), DefaultEdge] = new DefaultUndirectedGraph[(mutable.HashSet[Int],mutable.HashSet[Int]), DefaultEdge](new DefaultEdge().getClass)
-    disjEntities.foreach(n => {
-      n.foreach(e => {
-        val fields = Tuple2(e.mandatoryAttributes,e.optionalAttributes--e.mandatoryAttributes)
-        g.addVertex(fields)
-        e.mandatoryAttributes.foreach(i => {
-          val s = new mutable.HashSet[Int]()
-          s += i
-          if(!g.containsVertex(Tuple2(s,null))){
-            g.addVertex(Tuple2(s,null))
+
+  def buildGraph(root: JsonExtractionRoot, t:Array[(SchemaName,ListBuffer[ListBuffer[entity]])]): (Graph[(mutable.HashSet[Int],mutable.HashSet[Int],SchemaName),DefaultEdge],mutable.HashMap[SchemaName,mutable.ListBuffer[(mutable.HashSet[Int],mutable.HashSet[Int])]]) = {
+    val g: Graph[(mutable.HashSet[Int],mutable.HashSet[Int],SchemaName), DefaultEdge] = new DefaultUndirectedGraph[(mutable.HashSet[Int],mutable.HashSet[Int],SchemaName), DefaultEdge](new DefaultEdge().getClass)
+    val schemas: List[SchemaName] = t.toList.map(_._1)
+    val lookup: mutable.HashMap[SchemaName,mutable.ListBuffer[(mutable.HashSet[Int],mutable.HashSet[Int])]] = mutable.HashMap[SchemaName,mutable.ListBuffer[(mutable.HashSet[Int],mutable.HashSet[Int])]]()
+
+    t.foreach{case(schemaName, disjEntities)=>{
+      disjEntities.foreach(n => {
+        n.foreach(e => {
+          val fields = Tuple3(e.mandatoryAttributes,e.optionalAttributes--e.mandatoryAttributes,schemaName)
+          lookup.get(fields._3) match {
+            case Some(a) => a += Tuple2(fields._1,fields._2)
+            case None => lookup.put(fields._3,mutable.ListBuffer[(mutable.HashSet[Int],mutable.HashSet[Int])](Tuple2(fields._1,fields._2)))
           }
-          g.addEdge(Tuple2(s,null),fields)
+          g.addVertex(fields)
         })
       })
-    })
-    (schemaName,g)
+    }}
+    // find common attributes within groups
+    // add entity to subgraph connections
+    g.vertexSet().asScala.map { case(manditory,optional,localSchema) => { // for each entity, check if
+      val y = root.Schemas.get(localSchema).get.attributeLookup.map(c => (c._2,c._1))
+      val attributes: List[AttributeName] = (manditory.map(y.get(_).get).toList ++ optional.map(y.get(_).get).toList)
+      schemas.filter(attributes.contains(_)).map(s => {
+        lookup.get(s).get.foreach{case(opt,man) => g.addEdge(Tuple3(manditory,optional,localSchema),Tuple3(opt,man,s))}
+      })
+    }}
+
+    g.vertexSet().asScala.foreach(x=> g.removeEdge(x,x)) // remove self edge
+
+    (g,lookup)
   }
 
-  def computeStatistics(schemaName: SchemaName, disjEntities: ListBuffer[ListBuffer[entity]]): (SchemaName, ListBuffer[ListBuffer[entity]], mutable.HashMap[String,Any]) = {
-    val stats: mutable.HashMap[String,Any] = mutable.HashMap[String,Any]()
-    stats.put("schemaName",Types.nameToString(schemaName))
-    val precision: Int = scala.math.max(disjEntities.foldLeft(0){case(disjCount,ent) => {
-      disjCount + ent.foldLeft(0){case(entCount,subEnt) => {
-        entCount + scala.math.pow(2,(subEnt.optionalAttributes--subEnt.mandatoryAttributes).size).toInt
-      }}
-    }},1)
-    stats.put("precision",precision)
-    (schemaName,disjEntities,stats)
-  }
-
-
-  def test(): Unit = {
-    val testMatrix: mutable.HashMap[mutable.ArrayBuffer[Byte],Int] =  mutable.HashMap[mutable.ArrayBuffer[Byte],Int]()
-    testMatrix.put(mutable.ArrayBuffer[Byte](1,1,1,0,0),5)
-    testMatrix.put(mutable.ArrayBuffer[Byte](1,0,1,0,0),4)
-    testMatrix.put(mutable.ArrayBuffer[Byte](0,0,0,0,0),3)
-    testMatrix.put(mutable.ArrayBuffer[Byte](0,0,0,1,1),2)
-
-
-
-    val (r,r1) = OurBiMax.BiMax(ListBuffer[Any]("test"),testMatrix)
-    val r2 = OurBiMax.convertBiMaxNodes(r,r1)
-    val r3 = OurBiMax.categorizeAttributes(r2._1,r2._2)
-    val r4 = OurBiMax.buildGraph(r3._1,r3._2)
-
-    val attributes: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute] = scala.collection.mutable.HashMap[AttributeName,Attribute]()
-    val schema = new JsonExtractionSchema()
-    schema.parent = ListBuffer[Any]("test")
-    schema.attributeLookup = new scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Int]()
-    schema.attributeLookup.put(ListBuffer[Any]("a"),0)
-    schema.attributeLookup.put(ListBuffer[Any]("b"),1)
-    schema.attributeLookup.put(ListBuffer[Any]("c"),2)
-    schema.attributeLookup.put(ListBuffer[Any]("d"),3)
-    schema.attributeLookup.put(ListBuffer[Any]("e"),4)
-
-    //BiMaxViz.viz(schema, r4._2)
-
-    println("done")
-  }
 
 }

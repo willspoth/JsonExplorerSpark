@@ -117,15 +117,9 @@ object SparkMain {
         case true =>
           fvs.map(x => FeatureVectorCreator.toDense(x._1,x._2)).map(x => NMF.RunNMF.runNMF(root.Schemas.get(x._1).get,x._2,x._3)).collect()
         case false =>
-          val r = fvs.map(x => BiMax.OurBiMax.BiMax(x._1,x._2)).map(x => BiMax.OurBiMax.convertBiMaxNodes(x._1,x._2)).map(x => BiMax.OurBiMax.categorizeAttributes(x._1,x._2)).map(x => BiMax.OurBiMax.computeStatistics(x._1,x._2)).collect()
-          /*
-          println("Precision: "+r.foldLeft(1){case(acc,p) =>
-            acc*p._3.get("precision").get.asInstanceOf[Int]
-          }.toString()) // combine precision
-          */
-          val graphViz = new Viz.BiMaxViz()
-          graphViz.viz(name,root,r.map(x => BiMax.OurBiMax.buildGraph(x._1,x._2)))//root.Schemas.get(x._1).get,x._2))
-          println("done")
+          val r = fvs.map(x => BiMax.OurBiMax.BiMax(x._1,x._2)).map(x => BiMax.OurBiMax.convertBiMaxNodes(x._1,x._2)).map(x => BiMax.OurBiMax.categorizeAttributes(x._1,x._2)).collect()
+          val (g,l) = BiMax.OurBiMax.buildGraph(root,r)
+          Viz.BiMaxViz.viz(name,root,g,l)
       }
 
     val endTime = System.currentTimeMillis() // End Timer
