@@ -3,16 +3,14 @@ package JsonExplorer
 import java.io._
 import java.util.Calendar
 
+import BiMax.OurBiMax
 import Explorer.Types.{AttributeName, SchemaName}
 import Explorer._
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.SparkConf
 import org.apache.spark.rdd.RDD
-import Viz.{BiMaxViz, PlannerFrame}
+import Viz.PlannerFrame
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.types.{ArrayType, StructField, StructType}
-import org.jgrapht.Graph
-import org.jgrapht.graph.DefaultEdge
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -52,11 +50,12 @@ object SparkMain {
 
     val startTime = System.currentTimeMillis() // Start timer
 
-    val data: Array[RDD[String]] = spark.sparkContext.textFile(inputFile).filter(x => (x.size > 0 && x.charAt(0).equals('{'))).randomSplit(Array[Double](0.8,0.2)) // read file
+    val data: Array[RDD[String]] = spark.sparkContext.textFile(inputFile).filter(x => (x.size > 0 && x.charAt(0).equals('{')))
+      .randomSplit(Array[Double](0.6,0.4)) // read file
     val test: RDD[String] = data.head
     val validation: RDD[String] = data.last
     log += LogOutput("TestSize",test.count().toString,"TestSize: ")
-    log += LogOutput("ValidationSize",test.count().toString,"ValidationSize: ")
+    log += LogOutput("ValidationSize",validation.count().toString,"ValidationSize: ")
 
     /*
       Serialize the input file into JsonExplorerTypes while keeping the JSON tree structure.
@@ -113,7 +112,10 @@ object SparkMain {
           val r = fvs.map(x => BiMax.OurBiMax.BiMax(x._1,x._2)).map(x => BiMax.OurBiMax.convertBiMaxNodes(x._1,x._2)).map(x => BiMax.OurBiMax.categorizeAttributes(x._1,x._2)).collect()
           val (g,l) = BiMax.OurBiMax.buildGraph(root,r)
           log += LogOutput("Precision",BiMax.OurBiMax.calculatePrecision(ListBuffer[Any](),g,l).toString(),"Precision: ")
+          val schemaSet = OurBiMax.graphToSchemaSet(root,g,l)
+          log += LogOutput("Validation",((validation.mapPartitions(x => JacksonSerializer.serialize(x)).map(x => OurBiMax.splitForValidation(x)).map(x => BiMax.OurBiMax.calculateValidation(x,schemaSet)).reduce(_+_)/validation.count().toDouble)*100.0).toString(),"Validation: ","%")
           Viz.BiMaxViz.viz(name,root,g,l)
+
       }
 
     val endTime = System.currentTimeMillis() // End Timer

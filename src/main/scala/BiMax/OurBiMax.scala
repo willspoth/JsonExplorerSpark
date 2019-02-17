@@ -1,14 +1,15 @@
 package BiMax
 
 
-import Explorer.{Attribute, JsonExtractionRoot, JsonExtractionSchema, Types}
+import Explorer._
 import Explorer.Types.{AttributeName, SchemaName}
 import Viz.BiMaxViz
-import org.jgrapht.graph.{DefaultEdge, DefaultDirectedGraph}
+import org.jgrapht.graph.{DefaultDirectedGraph, DefaultEdge}
 
 import scala.collection.mutable
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import org.jgrapht._
+
 import scala.collection.JavaConverters._
 
 
@@ -223,5 +224,60 @@ object OurBiMax {
     expressions.foldLeft(BigInt(1)){case(acc,v)=> acc+v} // add each entity at this level
   }
 
+  def splitForValidation(row: JsonExplorerType): mutable.HashSet[AttributeName] = {
+    val attributeSet: mutable.HashSet[AttributeName] = mutable.HashSet[AttributeName]()
+
+    def extract(name: AttributeName,jet: JsonExplorerType): Unit = {
+      jet match {
+        case JE_String | JE_Numeric | JE_Boolean | JE_Null | JE_Empty_Array | JE_Empty_Object => attributeSet += name
+        case JE_Object(xs) =>
+          xs.foreach(je => extract(name :+ je._1, je._2))
+        case JE_Array(xs) =>
+          xs.zipWithIndex.foreach(je => {
+            extract(name :+ je._2, je._1)
+          })
+      }
+    }
+
+    extract(new AttributeName(), row)
+    attributeSet.map(r => r.map(a => {
+      a match {
+        case _: Int => Star
+        case _ => a
+      }
+    }))
+  }
+
+  // manditory, optional
+  def graphToSchemaSet(root: JsonExtractionRoot, g: Graph[(mutable.HashSet[Int],mutable.HashSet[Int],SchemaName),DefaultEdge], entityLookup: mutable.HashMap[SchemaName,mutable.ListBuffer[(mutable.HashSet[Int],mutable.HashSet[Int])]]): mutable.ListBuffer[(mutable.HashSet[AttributeName],mutable.HashSet[AttributeName])] = {
+    val possibleSchemas: mutable.ListBuffer[(mutable.HashSet[AttributeName],mutable.HashSet[AttributeName])] = mutable.ListBuffer[(mutable.HashSet[AttributeName],mutable.HashSet[AttributeName])]()
+
+    def createSchema(currentSchemaName: SchemaName, currentAttributeList: (mutable.HashSet[AttributeName],mutable.HashSet[AttributeName]), g: Graph[(mutable.HashSet[Int],mutable.HashSet[Int],SchemaName),DefaultEdge], entityLookup: mutable.HashMap[SchemaName,mutable.ListBuffer[(mutable.HashSet[Int],mutable.HashSet[Int])]]): Unit = {
+      val nameLookup = root.Schemas.get(currentSchemaName).get.attributeLookup.map(_.swap)
+      entityLookup.get(currentSchemaName).get.foreach(entity => {
+        val mand = entity._1.map(nameLookup.get(_).get)
+        val opt = entity._2.map(nameLookup.get(_).get)
+        val children: mutable.Set[DefaultEdge] = g.edgesOf(Tuple3(entity._1,entity._2,currentSchemaName)).asScala.filter(edge => (!g.getEdgeSource(edge).equals(g.getEdgeTarget(edge))) && g.getEdgeSource(edge)._3.equals(currentSchemaName))
+        if(children.size > 0){ // recursive call
+          children.foreach(e => {createSchema(g.getEdgeTarget(e)._3, (currentAttributeList._1 ++ mand,currentAttributeList._2 ++ opt), g, entityLookup)})
+        } else { // base case, add to possible schema
+          possibleSchemas += Tuple2(currentAttributeList._1 ++ mand,currentAttributeList._2 ++ opt)
+        }
+      })
+    }
+
+    createSchema(ListBuffer[Any](),(mutable.HashSet[AttributeName](),mutable.HashSet[AttributeName]()),g,entityLookup)
+    possibleSchemas
+  }
+
+  def calculateValidation(attributeSet: mutable.HashSet[AttributeName], possibleSchemas: mutable.ListBuffer[(mutable.HashSet[AttributeName],mutable.HashSet[AttributeName])]): Int = {
+    possibleSchemas.foreach{case(mand,opt) => {
+      if((mand.subsetOf(attributeSet) || mand.equals(attributeSet)) && ((attributeSet--mand).subsetOf(opt) || (attributeSet--mand).equals(opt)))
+        return 1
+      else if(attributeSet.subsetOf(mand++opt) || attributeSet.equals(mand++opt))
+        return 1
+    }}
+    return 0
+  }
 
 }
