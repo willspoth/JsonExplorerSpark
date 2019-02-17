@@ -272,14 +272,14 @@ object OurBiMax {
     createSchema(ListBuffer[Any](),g,entityLookup)
   }
 
-  def calculateValidation(attributeSet: mutable.HashSet[AttributeName], possibleSchemas: mutable.ListBuffer[(mutable.HashSet[AttributeName],mutable.HashSet[AttributeName])]): Int = {
+  def calculateValidation(attributeSet: mutable.HashSet[AttributeName], possibleSchemas: mutable.ListBuffer[(mutable.HashSet[AttributeName],mutable.HashSet[AttributeName])]): (Int,Int) = {
     possibleSchemas.foreach{case(mand,opt) => {
       if((mand.subsetOf(attributeSet) || mand.equals(attributeSet)) && ((attributeSet--mand).subsetOf(opt) || (attributeSet--mand).equals(opt)))
-        return 1
+        return (1,1)
       else if(attributeSet.subsetOf(mand++opt) || attributeSet.equals(mand++opt))
-        return 0
+        return (0,1)
     }}
-    return 0
+    return (0,0)
   }
 
 }

@@ -28,7 +28,7 @@ object SparkMain {
 
     log += LogOutput("Date",Calendar.getInstance().getTime().toString,"Date: ")
 
-    val(inputFile, memory, useUI, doNMF,spark,name,outputLog) = readArgs(args) // Creates the Spark session with its config values.
+    val(inputFile, memory, useUI, doNMF,spark,name,outputLog,testPercent,validationSize) = readArgs(args) // Creates the Spark session with its config values.
 
     """
     val j = spark.read.json(inputFile)
@@ -50,10 +50,19 @@ object SparkMain {
 
     val startTime = System.currentTimeMillis() // Start timer
 
+    val totalNumberOfLines: Long = spark.sparkContext.textFile(inputFile).filter(x => (x.size > 0 && x.charAt(0).equals('{'))).count()
+    var testSize: Double = totalNumberOfLines.toDouble*(testPercent/100.0)
+    if(testPercent > 100.0)
+      throw new Exception("Test Percent can't be higher than 100%, Found: " + testPercent.toString)
+    else if((testSize + validationSize) > totalNumberOfLines) {
+      testSize = totalNumberOfLines.toDouble - validationSize.toDouble
+      println("Total Percent can't be higher than 100%, Found: " + testPercent.toString + " + " + ((validationSize.toDouble/totalNumberOfLines.toDouble)/100.0).toString + " setting test Percent to " +testPercent.toString)
+    }
+    val overflow: Double = totalNumberOfLines.toDouble - validationSize.toDouble - testSize.toDouble
     val data: Array[RDD[String]] = spark.sparkContext.textFile(inputFile).filter(x => (x.size > 0 && x.charAt(0).equals('{')))
-      .randomSplit(Array[Double](0.1,0.9)) // read file
+      .randomSplit(Array[Double](testSize,validationSize.toDouble,overflow)) // read file
     val test: RDD[String] = data.head
-    val validation: RDD[String] = data.last
+    val validation: RDD[String] = data(1)
     log += LogOutput("TestSize",test.count().toString,"TestSize: ")
     log += LogOutput("ValidationSize",validation.count().toString,"ValidationSize: ")
 
@@ -113,7 +122,10 @@ object SparkMain {
           val (g,l) = BiMax.OurBiMax.buildGraph(root,r)
           log += LogOutput("Precision",BiMax.OurBiMax.calculatePrecision(ListBuffer[Any](),g,l).toString(),"Precision: ")
           val schemaSet = OurBiMax.graphToSchemaSet(root,g,l)
-          log += LogOutput("Validation",((validation.mapPartitions(x => JacksonSerializer.serialize(x)).map(x => OurBiMax.splitForValidation(x)).map(x => BiMax.OurBiMax.calculateValidation(x,schemaSet)).reduce(_+_)/validation.count().toDouble)*100.0).toString(),"Validation: ","%")
+          val (strict, notStrict) = validation.mapPartitions(x => JacksonSerializer.serialize(x)).map(x => OurBiMax.splitForValidation(x)).map(x => BiMax.OurBiMax.calculateValidation(x,schemaSet)).reduce((acc,y) => (acc._1+y._1,acc._2+y._2))
+          log += LogOutput("StrictValidation",((strict/validation.count().toDouble)*100.0).toString(),"Strict Validation: ","%")
+          log += LogOutput("LooseValidation",((notStrict/validation.count().toDouble)*100.0).toString(),"Loose Validation: ","%")
+          log += LogOutput("ValidationDifference",((math.abs(strict-notStrict)/validation.count().toDouble)*100.0).toString(),"Validation Difference: ","%")
           Viz.BiMaxViz.viz(name,root,g,l)
 
       }
@@ -131,7 +143,7 @@ object SparkMain {
   }
 
 
-  def readArgs(args: Array[String]): (String,Option[Boolean],Boolean,Boolean,SparkSession,String,Boolean) = {
+  def readArgs(args: Array[String]): (String,Option[Boolean],Boolean,Boolean,SparkSession,String,Boolean,Double,Int) = {
     if(args.size == 0 || args.size%2 == 0) {
       println("Unexpected Argument, should be, filename -master xxx -name xxx -sparkinfo xxx -sparkinfo xxx")
       System.exit(0)
@@ -172,7 +184,28 @@ object SparkMain {
       case _ | None => false
     }
 
-    (filename, memory, ui, nmf,spark,name,outputLog)
+
+    val testPercent: Double = argMap.get("test") match {
+      case Some(s) =>
+        try {
+          s.toDouble
+        } catch {
+          case e: Exception => throw new Exception("Make sure test is a double in the form -test 90.0")
+        }
+      case _ | None => 100.0
+    }
+
+    val validationSize: Int = argMap.get("val") match {
+      case Some(s) =>
+        try {
+          s.toInt
+        } catch {
+          case e: Exception => throw new Exception("Make sure val is an integer in the form -val 1000")
+        }
+      case _ | None => 0
+    }
+
+    (filename, memory, ui, nmf,spark,name,outputLog,testPercent,validationSize)
   }
 
   // these are special parsers for our data just to get things running, will replace with better solution for recall tests
