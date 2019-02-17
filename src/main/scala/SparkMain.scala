@@ -51,7 +51,7 @@ object SparkMain {
     val startTime = System.currentTimeMillis() // Start timer
 
     val data: Array[RDD[String]] = spark.sparkContext.textFile(inputFile).filter(x => (x.size > 0 && x.charAt(0).equals('{')))
-      .randomSplit(Array[Double](0.6,0.4)) // read file
+      .randomSplit(Array[Double](0.1,0.9)) // read file
     val test: RDD[String] = data.head
     val validation: RDD[String] = data.last
     log += LogOutput("TestSize",test.count().toString,"TestSize: ")

@@ -199,11 +199,9 @@ object OurBiMax {
       val y = root.Schemas.get(localSchema).get.attributeLookup.map(c => (c._2,c._1))
       val attributes: List[AttributeName] = (manditory.map(y.get(_).get).toList ++ optional.map(y.get(_).get).toList)
       schemas.filter(attributes.contains(_)).map(s => {
-        lookup.get(s).get.foreach{case(opt,man) => g.addEdge(Tuple3(manditory,optional,localSchema),Tuple3(opt,man,s))}
+        lookup.get(s).get.foreach{case(man,opt) => g.addEdge(Tuple3(manditory,optional,localSchema),Tuple3(man,opt,s))}
       })
     }}
-
-    g.vertexSet().asScala.foreach(x=> g.removeEdge(x,x)) // remove self edge
 
     (g,lookup)
   }
@@ -231,8 +229,12 @@ object OurBiMax {
       jet match {
         case JE_String | JE_Numeric | JE_Boolean | JE_Null | JE_Empty_Array | JE_Empty_Object => attributeSet += name
         case JE_Object(xs) =>
+          if(name.nonEmpty)
+            attributeSet += name
           xs.foreach(je => extract(name :+ je._1, je._2))
         case JE_Array(xs) =>
+          if(name.nonEmpty)
+            attributeSet += name
           xs.zipWithIndex.foreach(je => {
             extract(name :+ je._2, je._1)
           })
@@ -250,24 +252,24 @@ object OurBiMax {
 
   // manditory, optional
   def graphToSchemaSet(root: JsonExtractionRoot, g: Graph[(mutable.HashSet[Int],mutable.HashSet[Int],SchemaName),DefaultEdge], entityLookup: mutable.HashMap[SchemaName,mutable.ListBuffer[(mutable.HashSet[Int],mutable.HashSet[Int])]]): mutable.ListBuffer[(mutable.HashSet[AttributeName],mutable.HashSet[AttributeName])] = {
-    val possibleSchemas: mutable.ListBuffer[(mutable.HashSet[AttributeName],mutable.HashSet[AttributeName])] = mutable.ListBuffer[(mutable.HashSet[AttributeName],mutable.HashSet[AttributeName])]()
-
-    def createSchema(currentSchemaName: SchemaName, currentAttributeList: (mutable.HashSet[AttributeName],mutable.HashSet[AttributeName]), g: Graph[(mutable.HashSet[Int],mutable.HashSet[Int],SchemaName),DefaultEdge], entityLookup: mutable.HashMap[SchemaName,mutable.ListBuffer[(mutable.HashSet[Int],mutable.HashSet[Int])]]): Unit = {
+    def createSchema(currentSchemaName: SchemaName, g: Graph[(mutable.HashSet[Int],mutable.HashSet[Int],SchemaName),DefaultEdge], entityLookup: mutable.HashMap[SchemaName,mutable.ListBuffer[(mutable.HashSet[Int],mutable.HashSet[Int])]]): ListBuffer[(mutable.HashSet[AttributeName],mutable.HashSet[AttributeName])] = {
       val nameLookup = root.Schemas.get(currentSchemaName).get.attributeLookup.map(_.swap)
-      entityLookup.get(currentSchemaName).get.foreach(entity => {
+      entityLookup.get(currentSchemaName).get.flatMap(entity => {
         val mand = entity._1.map(nameLookup.get(_).get)
         val opt = entity._2.map(nameLookup.get(_).get)
         val children: mutable.Set[DefaultEdge] = g.edgesOf(Tuple3(entity._1,entity._2,currentSchemaName)).asScala.filter(edge => (!g.getEdgeSource(edge).equals(g.getEdgeTarget(edge))) && g.getEdgeSource(edge)._3.equals(currentSchemaName))
-        if(children.size > 0){ // recursive call
-          children.foreach(e => {createSchema(g.getEdgeTarget(e)._3, (currentAttributeList._1 ++ mand,currentAttributeList._2 ++ opt), g, entityLookup)})
-        } else { // base case, add to possible schema
-          possibleSchemas += Tuple2(currentAttributeList._1 ++ mand,currentAttributeList._2 ++ opt)
-        }
+        children.foldLeft(ListBuffer[(mutable.HashSet[AttributeName],mutable.HashSet[AttributeName])]((mand,opt))){ case(acc,e) => {
+          val r = createSchema(g.getEdgeTarget(e)._3, g, entityLookup)
+          val (big,small) = {if(r.size>acc.size) (r,acc) else (acc,r)}
+          big.map(b => {small.foreach(s => {
+            b._1 ++= s._1
+            b._2 ++= s._2})
+          b})
+        }} // end fold left
       })
     }
 
-    createSchema(ListBuffer[Any](),(mutable.HashSet[AttributeName](),mutable.HashSet[AttributeName]()),g,entityLookup)
-    possibleSchemas
+    createSchema(ListBuffer[Any](),g,entityLookup)
   }
 
   def calculateValidation(attributeSet: mutable.HashSet[AttributeName], possibleSchemas: mutable.ListBuffer[(mutable.HashSet[AttributeName],mutable.HashSet[AttributeName])]): Int = {
@@ -275,7 +277,7 @@ object OurBiMax {
       if((mand.subsetOf(attributeSet) || mand.equals(attributeSet)) && ((attributeSet--mand).subsetOf(opt) || (attributeSet--mand).equals(opt)))
         return 1
       else if(attributeSet.subsetOf(mand++opt) || attributeSet.equals(mand++opt))
-        return 1
+        return 0
     }}
     return 0
   }
