@@ -6,7 +6,7 @@ import java.util.Calendar
 import BiMax.OurBiMax
 import Explorer.Types.{AttributeName, SchemaName}
 import Explorer._
-import Naive.Flat
+import Naive.{Flat, Verbose}
 import org.apache.spark.SparkConf
 import org.apache.spark.rdd.RDD
 import Viz.PlannerFrame
@@ -53,6 +53,7 @@ object SparkMain {
 
     if(true){ // naive flat comparison
       Flat.test(train,validation,log)
+      Verbose.test(train,validation,log)
       println(log.map(_.toString).mkString("\n"))
     }
 
