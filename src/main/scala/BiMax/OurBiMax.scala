@@ -210,7 +210,7 @@ object OurBiMax {
   // start with empty precisionName
   def calculatePrecision(currentSchemaName: SchemaName, g: Graph[(mutable.HashSet[Int],mutable.HashSet[Int],SchemaName),DefaultEdge], entityLookup: mutable.HashMap[SchemaName,mutable.ListBuffer[(mutable.HashSet[Int],mutable.HashSet[Int])]]): BigInt = {
     val expressions: ListBuffer[BigInt] = entityLookup.get(currentSchemaName).get.map(entity => {
-      val v: BigInt = BigInt(2).pow(entity._2.size)
+      val v: BigInt = BigInt(2).pow(entity._1.size+entity._2.size)
       v*g.edgesOf(Tuple3(entity._1,entity._2,currentSchemaName)).asScala.foldLeft(BigInt(1)){case(acc,edge) => {
         if((!g.getEdgeSource(edge).equals(g.getEdgeTarget(edge))) && g.getEdgeSource(edge)._3.equals(currentSchemaName)){
           acc+calculatePrecision(g.getEdgeTarget(edge)._3,g,entityLookup)
@@ -272,14 +272,14 @@ object OurBiMax {
     createSchema(ListBuffer[Any](),g,entityLookup)
   }
 
-  def calculateValidation(attributeSet: mutable.HashSet[AttributeName], possibleSchemas: mutable.ListBuffer[(mutable.HashSet[AttributeName],mutable.HashSet[AttributeName])]): (Int,Int) = {
+  def calculateValidation(attributeSet: mutable.HashSet[AttributeName], possibleSchemas: mutable.ListBuffer[(mutable.HashSet[AttributeName],mutable.HashSet[AttributeName])]): Int = {
     possibleSchemas.foreach{case(mand,opt) => {
       if((mand.subsetOf(attributeSet) || mand.equals(attributeSet)) && ((attributeSet--mand).subsetOf(opt) || (attributeSet--mand).equals(opt)))
-        return (1,1)
-      else if(attributeSet.subsetOf(mand++opt) || attributeSet.equals(mand++opt))
-        return (0,1)
+        return 1
+      //if(attributeSet.subsetOf(mand++opt) || attributeSet.equals(mand++opt))
+        //return 1
     }}
-    return (0,0)
+    return 0
   }
 
 }

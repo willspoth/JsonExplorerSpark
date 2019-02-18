@@ -41,7 +41,7 @@ object SparkMain {
       throw new Exception("Test Percent can't be higher than 100%, Found: " + trainPercent.toString)
     else if((trainSize + validationSize) > totalNumberOfLines) {
       trainSize = totalNumberOfLines.toDouble - validationSize.toDouble
-      println("Total Percent can't be higher than 100%, Found: " + trainPercent.toString + " + " + ((validationSize.toDouble/totalNumberOfLines.toDouble)/100.0).toString + " setting test Percent to " +trainPercent.toString)
+      println("Total Percent can't be higher than 100%, Found: " + trainPercent.toString + " + " + (validationSize.toDouble/totalNumberOfLines.toDouble).toString + " setting test Percent to " +trainPercent.toString)
     }
     val overflow: Double = totalNumberOfLines.toDouble - validationSize.toDouble - trainSize.toDouble
     val data: Array[RDD[String]] = spark.sparkContext.textFile(inputFile).filter(x => (x.size > 0 && x.charAt(0).equals('{')))
@@ -54,7 +54,8 @@ object SparkMain {
     if(true){ // naive flat comparison
       Flat.test(train,validation,log)
       Verbose.test(train,validation,log)
-      println(log.map(_.toString).mkString("\n"))
+      //println(log.map(_.toString).mkString("\n"))
+
     }
 
     /*
@@ -112,10 +113,8 @@ object SparkMain {
           val (g,l) = BiMax.OurBiMax.buildGraph(root,r)
           log += LogOutput("Precision",BiMax.OurBiMax.calculatePrecision(ListBuffer[Any](),g,l).toString(),"Precision: ")
           val schemaSet = OurBiMax.graphToSchemaSet(root,g,l)
-          val (strict, notStrict) = validation.mapPartitions(x => JacksonSerializer.serialize(x)).map(x => OurBiMax.splitForValidation(x)).map(x => BiMax.OurBiMax.calculateValidation(x,schemaSet)).reduce((acc,y) => (acc._1+y._1,acc._2+y._2))
-          log += LogOutput("StrictValidation",((strict/validation.count().toDouble)*100.0).toString(),"Strict Validation: ","%")
-          log += LogOutput("LooseValidation",((notStrict/validation.count().toDouble)*100.0).toString(),"Loose Validation: ","%")
-          log += LogOutput("ValidationDifference",((math.abs(strict-notStrict)/validation.count().toDouble)*100.0).toString(),"Validation Difference: ","%")
+          val vali = validation.mapPartitions(x => JacksonSerializer.serialize(x)).map(x => OurBiMax.splitForValidation(x)).map(x => BiMax.OurBiMax.calculateValidation(x,schemaSet.map{case(m,o)=>Tuple2(mutable.HashSet[AttributeName](),m++o)})).reduce(_+_)
+          log += LogOutput("Validation",((vali/validation.count().toDouble)*100.0).toString(),"Validation: ","%")
           Viz.BiMaxViz.viz(name,root,g,l)
 
       }

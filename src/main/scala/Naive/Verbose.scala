@@ -16,9 +16,8 @@ object Verbose {
     // calculate Precision
     log += LogOutput("VerbosePrecision",verboseRows.size.toString(),"Verbose Precision: ")
     // calculate Validation
-    val (strict, notStrict) = validation.mapPartitions(x => JacksonSerializer.serialize(x)).map(x => OurBiMax.splitForValidation(x)).map(x => BiMax.OurBiMax.calculateValidation(x,verboseRows)).reduce((acc,y) => (acc._1+y._1,acc._2+y._2))
-    log += LogOutput("VerboseStrictValidation",((strict/validation.count().toDouble)*100.0).toString(),"Verbose Strict Validation: ","%")
-    log += LogOutput("VerboseLooseValidation",((notStrict/validation.count().toDouble)*100.0).toString(),"Verbose Loose Validation: ","%")
+    val vali = validation.mapPartitions(x => JacksonSerializer.serialize(x)).map(x => OurBiMax.splitForValidation(x)).map(x => BiMax.OurBiMax.calculateValidation(x,verboseRows)).reduce(_+_)
+    log += LogOutput("VerboseValidation",((vali/validation.count().toDouble)*100.0).toString(),"Verbose Validation: ","%")
   }
 
   def mergeValue(s: scala.collection.mutable.HashSet[scala.collection.mutable.HashSet[AttributeName]], row: scala.collection.mutable.HashSet[AttributeName]): scala.collection.mutable.HashSet[scala.collection.mutable.HashSet[AttributeName]] = {
