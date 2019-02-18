@@ -125,8 +125,11 @@ object SparkMain {
     log += LogOutput("OptimizationTime",optimizationRunTime.toString,"Optimization Took: "," ms")
     log += LogOutput("FVCreationTime",FVRunTime.toString,"FV Creation Took: "," ms")
     log += LogOutput("TotalTime",(endTime - startTime).toString,"Total execution time: ", " ms")
-    if(outputLog) // write out log
-      new PrintWriter("log.json") { append("{"+log.map(_.toJson).mkString(",")+"}"); close }
+    if(outputLog) { // write out log
+      val logFile = new FileWriter("log.json",true)
+      logFile.write("{" + log.map(_.toJson).mkString(",") + "}\n")
+      logFile.close()
+    }
     else
       println(log.map(_.toString).mkString("\n"))
   }

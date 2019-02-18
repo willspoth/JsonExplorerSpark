@@ -1,0 +1,6 @@
+eval "$(java -jar JsonExplorer.jar C:/Users/Will/Desktop/JsonData/${1} -memory n -nmf n -log t -test 10.0 -val 5000)"
+eval "$(java -jar JsonExplorer.jar C:/Users/Will/Desktop/JsonData/${1} -memory n -nmf n -log t -test 20.0 -val 5000)"
+eval "$(java -jar JsonExplorer.jar C:/Users/Will/Desktop/JsonData/${1} -memory n -nmf n -log t -test 40.0 -val 5000)"
+eval "$(java -jar JsonExplorer.jar C:/Users/Will/Desktop/JsonData/${1} -memory n -nmf n -log t -test 60.0 -val 5000)"
+eval "$(java -jar JsonExplorer.jar C:/Users/Will/Desktop/JsonData/${1} -memory n -nmf n -log t -test 80.0 -val 5000)"
+eval "$(java -jar JsonExplorer.jar C:/Users/Will/Desktop/JsonData/${1} -memory n -nmf n -log t -test 90.0 -val 5000)"

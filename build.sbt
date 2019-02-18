@@ -45,6 +45,7 @@ assemblyMergeStrategy in assembly := {
   case PathList("com", "googlecode", xs @ _*) => MergeStrategy.last
   case PathList("org", "xmlpull", xs @ _*)           => MergeStrategy.discard
   case "overview.html" => MergeStrategy.rename
+  case "git.properties" => MergeStrategy.discard
   case "about.html" => MergeStrategy.rename
   case "META-INF/ECLIPSEF.RSA" => MergeStrategy.last
   case "META-INF/mailcap" => MergeStrategy.last
