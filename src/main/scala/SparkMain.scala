@@ -6,11 +6,13 @@ import java.util.Calendar
 import BiMax.OurBiMax
 import Explorer.Types.{AttributeName, SchemaName}
 import Explorer._
+import Naive.Flat
 import org.apache.spark.SparkConf
 import org.apache.spark.rdd.RDD
 import Viz.PlannerFrame
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.types.{ArrayType, StructField, StructType}
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -28,50 +30,37 @@ object SparkMain {
 
     log += LogOutput("Date",Calendar.getInstance().getTime().toString,"Date: ")
 
-    val(inputFile, memory, useUI, doNMF,spark,name,outputLog,testPercent,validationSize) = readArgs(args) // Creates the Spark session with its config values.
-
-    """
-    val j = spark.read.json(inputFile)
-    var attributes: Int = 0
-    //val s = new StructField(null,null,null).getClass
-    def countAttr(f: StructField): Unit = {
-      f.dataType match {
-        case f2: StructType => f2.fields.foreach(countAttr(_))
-        case arr: ArrayType => arr.elementType
-        case _ => attributes += 1
-      }
-    }
-    j.printSchema()
-    j.schema.toList.foreach(countAttr(_))
-    println(attributes)
-    """
-
+    val(inputFile, memory, useUI, doNMF,spark,name,outputLog,trainPercent,validationSize) = readArgs(args) // Creates the Spark session with its config values.
 
 
     val startTime = System.currentTimeMillis() // Start timer
 
     val totalNumberOfLines: Long = spark.sparkContext.textFile(inputFile).filter(x => (x.size > 0 && x.charAt(0).equals('{'))).count()
-    var testSize: Double = totalNumberOfLines.toDouble*(testPercent/100.0)
-    if(testPercent > 100.0)
-      throw new Exception("Test Percent can't be higher than 100%, Found: " + testPercent.toString)
-    else if((testSize + validationSize) > totalNumberOfLines) {
-      testSize = totalNumberOfLines.toDouble - validationSize.toDouble
-      println("Total Percent can't be higher than 100%, Found: " + testPercent.toString + " + " + ((validationSize.toDouble/totalNumberOfLines.toDouble)/100.0).toString + " setting test Percent to " +testPercent.toString)
+    var trainSize: Double = totalNumberOfLines.toDouble*(trainPercent/100.0)
+    if(trainPercent > 100.0)
+      throw new Exception("Test Percent can't be higher than 100%, Found: " + trainPercent.toString)
+    else if((trainSize + validationSize) > totalNumberOfLines) {
+      trainSize = totalNumberOfLines.toDouble - validationSize.toDouble
+      println("Total Percent can't be higher than 100%, Found: " + trainPercent.toString + " + " + ((validationSize.toDouble/totalNumberOfLines.toDouble)/100.0).toString + " setting test Percent to " +trainPercent.toString)
     }
-    val overflow: Double = totalNumberOfLines.toDouble - validationSize.toDouble - testSize.toDouble
+    val overflow: Double = totalNumberOfLines.toDouble - validationSize.toDouble - trainSize.toDouble
     val data: Array[RDD[String]] = spark.sparkContext.textFile(inputFile).filter(x => (x.size > 0 && x.charAt(0).equals('{')))
-      .randomSplit(Array[Double](testSize,validationSize.toDouble,overflow)) // read file
-    val test: RDD[String] = data.head
+      .randomSplit(Array[Double](trainSize,validationSize.toDouble,overflow)) // read file
+    val train: RDD[String] = data.head
     val validation: RDD[String] = data(1)
-    log += LogOutput("TestSize",test.count().toString,"TestSize: ")
+    log += LogOutput("TestSize",train.count().toString,"TestSize: ")
     log += LogOutput("ValidationSize",validation.count().toString,"ValidationSize: ")
+
+    if(true){ // naive flat comparison
+      Flat.test(train,validation,log)
+      println(log.map(_.toString).mkString("\n"))
+    }
 
     /*
       Serialize the input file into JsonExplorerTypes while keeping the JSON tree structure.
       This can then be parsed in the feature vector creation phase without having to re-read the input file.
      */
-    val serializedRecords = test
-      .mapPartitions(x=>JacksonSerializer.serialize(x))
+    val serializedRecords = train.mapPartitions(x=>JacksonSerializer.serialize(x))
     memory match {
       case Some(inmemory) =>
         if(inmemory)

@@ -1,0 +1,5 @@
+package Naive
+
+object Verbose {
+
+}
