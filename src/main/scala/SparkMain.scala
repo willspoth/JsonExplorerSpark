@@ -52,7 +52,7 @@ object SparkMain {
     log += LogOutput("ValidationSize",validation.count().toString,"ValidationSize: ")
 
     if(true){ // naive flat comparison
-      Flat.test(train,validation,log)
+      Flat.test(train,validation,log,true)
       Verbose.test(train,validation,log)
       //println(log.map(_.toString).mkString("\n"))
 
@@ -113,8 +113,10 @@ object SparkMain {
           val (g,l) = BiMax.OurBiMax.buildGraph(root,r)
           log += LogOutput("Precision",BiMax.OurBiMax.calculatePrecision(ListBuffer[Any](),g,l).toString(),"Precision: ")
           val schemaSet = OurBiMax.graphToSchemaSet(root,g,l)
-          val vali = validation.mapPartitions(x => JacksonSerializer.serialize(x)).map(x => OurBiMax.splitForValidation(x)).map(x => BiMax.OurBiMax.calculateValidation(x,schemaSet.map{case(m,o)=>Tuple2(mutable.HashSet[AttributeName](),m++o)})).reduce(_+_)
-          log += LogOutput("Validation",((vali/validation.count().toDouble)*100.0).toString(),"Validation: ","%")
+          if(validationSize >0) {
+            val vali = validation.mapPartitions(x => JacksonSerializer.serialize(x)).map(x => OurBiMax.splitForValidation(x)).map(x => BiMax.OurBiMax.calculateValidation(x, schemaSet.map { case (m, o) => Tuple2(mutable.HashSet[AttributeName](), m ++ o) })).reduce(_ + _)
+            log += LogOutput("Validation", ((vali / validation.count().toDouble) * 100.0).toString(), "Validation: ", "%")
+          }
           Viz.BiMaxViz.viz(name,root,g,l)
 
       }
