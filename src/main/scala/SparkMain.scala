@@ -52,8 +52,9 @@ object SparkMain {
     log += LogOutput("ValidationSize",validation.count().toString,"ValidationSize: ")
 
     if(true){ // naive flat comparison
-      Flat.test(train,validation,log,true)
-      Verbose.test(train,validation,log)
+      //Flat.test(train,validation,log,true)
+      //Verbose.test(train,validation,log)
+      Naive.KMeans.test(train,validation,log, 10)
       //println(log.map(_.toString).mkString("\n"))
       ???
     }
