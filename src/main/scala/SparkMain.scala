@@ -45,7 +45,7 @@ object SparkMain {
     }
     val overflow: Double = totalNumberOfLines.toDouble - validationSize.toDouble - trainSize.toDouble
     val data: Array[RDD[String]] = spark.sparkContext.textFile(inputFile).filter(x => (x.size > 0 && x.charAt(0).equals('{')))
-      .randomSplit(Array[Double](trainSize,validationSize.toDouble,overflow)) // read file
+      .randomSplit(Array[Double](trainSize,validationSize.toDouble,overflow),seed = 1000) // read file
     val train: RDD[String] = data.head
     val validation: RDD[String] = data(1)
     log += LogOutput("TestSize",train.count().toString,"TestSize: ")
@@ -55,7 +55,7 @@ object SparkMain {
       Flat.test(train,validation,log,true)
       Verbose.test(train,validation,log)
       //println(log.map(_.toString).mkString("\n"))
-
+      ???
     }
 
     /*

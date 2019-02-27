@@ -1,0 +1,5 @@
+package Naive
+
+class KMeans {
+
+}
