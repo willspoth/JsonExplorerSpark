@@ -1,9 +1,12 @@
 package Naive
 
+import java.awt.{Dimension, GridLayout}
+
 import BiMax.OurBiMax
-import Explorer.JacksonSerializer
+import Explorer.{JacksonSerializer, Types}
 import Explorer.Types.AttributeName
 import JsonExplorer.SparkMain.LogOutput
+import javax.swing.JFrame
 import org.apache.spark.rdd.RDD
 
 import scala.collection.mutable
@@ -48,6 +51,35 @@ object KMeans {
       acc
     }}.toList.map(_._2).to[ListBuffer]
 
+    // check for merged groups
+    sortedRows.foreach(s => sortedRows.filter(x=> x._2 == s._2 && !x._1.equals(s._1)).foreach(s2 => {
+      if((((s2._1._1 ++ s2._1._2).intersect((s._1._1 ++ s._1._2))).size / (math.min((s._1._1 ++ s._1._2).size,(s2._1._1 ++ s2._1._2).size).toDouble)) < 0.5) { // less than 20% in common
+        println((s2._1._1 ++ s2._1._2).subsetOf((s._1._1 ++ s._1._2))||(s._1._1 ++ s._1._2).subsetOf((s2._1._1 ++ s2._1._2)))
+      }
+    }))
+
+    val frame: JFrame = new JFrame("KMeans")
+    frame.setPreferredSize(new Dimension(3000, 1500))
+    frame.setLayout(new GridLayout(1,2))
+
+    val p1 = smile.plot.heatmap(fvs)
+    val p2 = smile.plot.heatmap(fvs.zip(clusterLabels).sortBy(_._2).map(_._1))
+
+    p1.close
+    p2.close
+
+    p1.canvas.setTitle("Original")
+    p2.canvas.setTitle("KMeans")
+
+    frame.getContentPane.add(p1.canvas)
+    frame.getContentPane.add(p2.canvas)
+
+    p1.canvas.reset()
+    p2.canvas.reset()
+
+    frame.pack()
+    frame.setVisible(true)
+
     makeGraph(clusteredValues)
     // calculate Precision
     log += LogOutput("KMeansPrecision",clusteredValues.map(x => BigInt(2).pow(x._2.size)).reduce(_+_).toString(),"KMeans Precision: ")
@@ -59,7 +91,6 @@ object KMeans {
         .reduce(_ + _)
       log += LogOutput("KMeansValidation", ((vali / validation.count().toDouble) * 100.0).toString(), "KMeans Validation: ", "%")
     }
-    ???
   }
 
   private def mergeValue(s: scala.collection.mutable.HashSet[scala.collection.mutable.HashSet[AttributeName]], row: scala.collection.mutable.HashSet[AttributeName]): scala.collection.mutable.HashSet[scala.collection.mutable.HashSet[AttributeName]] = {
