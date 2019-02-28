@@ -30,7 +30,7 @@ object SparkMain {
 
     log += LogOutput("Date",Calendar.getInstance().getTime().toString,"Date: ")
 
-    val(inputFile, memory, useUI, doNMF,spark,name,outputLog,trainPercent,validationSize) = readArgs(args) // Creates the Spark session with its config values.
+    val(inputFile, memory, useUI, doNMF,spark,name,outputLog,trainPercent,validationSize,k,testMode) = readArgs(args) // Creates the Spark session with its config values.
 
 
     val startTime = System.currentTimeMillis() // Start timer
@@ -51,13 +51,6 @@ object SparkMain {
     log += LogOutput("TestSize",train.count().toString,"TestSize: ")
     log += LogOutput("ValidationSize",validation.count().toString,"ValidationSize: ")
 
-    if(true){ // naive flat comparison
-      //Flat.test(train,validation,log,true)
-      //Verbose.test(train,validation,log)
-      Naive.KMeans.test(train,validation,log, 10)
-      //println(log.map(_.toString).mkString("\n"))
-      ???
-    }
 
     /*
       Serialize the input file into JsonExplorerTypes while keeping the JSON tree structure.
@@ -102,6 +95,8 @@ object SparkMain {
     val optimizationRunTime = optimizationTime - extractionTime
     //println("Optimization Took: " + optimizationRunTime.toString + " ms")
     // create feature vectors from this list
+    var (orig,kmeans,bimax): (Array[Array[Double]],Array[Array[Double]],Array[Array[Double]]) = (null,null,null)
+    var bimaxSchema: ListBuffer[(mutable.HashSet[Types.AttributeName], mutable.HashSet[Types.AttributeName])]  = null
 
     val fvs = serializedRecords.flatMap(FeatureVectorCreator.extractFVSs(root.Schemas,_))
       .combineByKey(FeatureVectorCreator.createCombiner,FeatureVectorCreator.mergeValue,FeatureVectorCreator.mergeCombiners)
@@ -114,7 +109,9 @@ object SparkMain {
           val (g,l) = BiMax.OurBiMax.buildGraph(root,r)
           log += LogOutput("Precision",BiMax.OurBiMax.calculatePrecision(ListBuffer[Any](),g,l).toString(),"Precision: ")
           val schemaSet = OurBiMax.graphToSchemaSet(root,g,l)
-          if(validationSize >0) {
+          bimaxSchema = schemaSet.map { case (m, o) => Tuple2(mutable.HashSet[AttributeName](), m ++ o) }
+
+          if(validationSize > 0) {
             val vali = validation.mapPartitions(x => JacksonSerializer.serialize(x)).map(x => OurBiMax.splitForValidation(x)).map(x => BiMax.OurBiMax.calculateValidation(x, schemaSet.map { case (m, o) => Tuple2(mutable.HashSet[AttributeName](), m ++ o) })).reduce(_ + _)
             log += LogOutput("Validation", ((vali / validation.count().toDouble) * 100.0).toString(), "Validation: ", "%")
           }
@@ -122,12 +119,22 @@ object SparkMain {
 
       }
 
+
     val endTime = System.currentTimeMillis() // End Timer
     val FVRunTime = endTime - optimizationTime
     log += LogOutput("ExtractionTime",extractionRunTime.toString,"Extraction Took: "," ms")
     log += LogOutput("OptimizationTime",optimizationRunTime.toString,"Optimization Took: "," ms")
     log += LogOutput("FVCreationTime",FVRunTime.toString,"FV Creation Took: "," ms")
     log += LogOutput("TotalTime",(endTime - startTime).toString,"Total execution time: ", " ms")
+
+    if(testMode){ // naive flat comparison
+      //Flat.test(train,validation,log,true)
+      //Verbose.test(train,validation,log)
+      val temp = Naive.KMeans.test(train,validation,log,bimaxSchema, k)
+      orig=temp._1;kmeans=temp._2;bimax=temp._3
+      //println(log.map(_.toString).mkString("\n"))
+    }
+
     if(outputLog) { // write out log
       val logFile = new FileWriter("log.json",true)
       logFile.write("{" + log.map(_.toJson).mkString(",") + "}\n")
@@ -135,10 +142,14 @@ object SparkMain {
     }
     else
       println(log.map(_.toString).mkString("\n"))
+
+    if(orig != null && kmeans != null && bimax != null)
+      Viz.KMeansViz.viz(orig,kmeans,bimax)
+
   }
 
 
-  def readArgs(args: Array[String]): (String,Option[Boolean],Boolean,Boolean,SparkSession,String,Boolean,Double,Int) = {
+  def readArgs(args: Array[String]): (String,Option[Boolean],Boolean,Boolean,SparkSession,String,Boolean,Double,Int,Int,Boolean) = {
     if(args.size == 0 || args.size%2 == 0) {
       println("Unexpected Argument, should be, filename -master xxx -name xxx -sparkinfo xxx -sparkinfo xxx")
       System.exit(0)
@@ -200,7 +211,23 @@ object SparkMain {
       case _ | None => 0
     }
 
-    (filename, memory, ui, nmf,spark,name,outputLog,testPercent,validationSize)
+    val k: Int = argMap.get("k") match {
+      case Some(s) =>
+        try {
+          s.toInt
+        } catch {
+          case e: Exception => throw new Exception("Make sure val is an integer in the form -val 1000")
+        }
+      case _ | None => 0
+    }
+
+    val testMode: Boolean = argMap.get("testMode") match {
+      case Some("true" | "t" | "y" | "yes") => true
+      case Some("n" | "no" | "false") => false
+      case _ | None => false
+    }
+
+    (filename, memory, ui, nmf,spark,name,outputLog,testPercent,validationSize,k,testMode)
   }
 
   // these are special parsers for our data just to get things running, will replace with better solution for recall tests
@@ -253,3 +280,8 @@ object SparkMain {
 
 
 }
+
+/*
+dynamic time warping
+entity splitting
+ */

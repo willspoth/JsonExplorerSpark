@@ -282,4 +282,12 @@ object OurBiMax {
     return 0
   }
 
+  def groupID(attributeSet: mutable.HashSet[AttributeName], possibleSchemas: mutable.ListBuffer[(mutable.HashSet[AttributeName],mutable.HashSet[AttributeName])]): Int = {
+    possibleSchemas.zipWithIndex.foreach{case((mand,opt),idx) => {
+      if((mand.subsetOf(attributeSet) || mand.equals(attributeSet)) && ((attributeSet--mand).subsetOf(opt) || (attributeSet--mand).equals(opt)))
+        return idx
+    }}
+    return -1
+  }
+
 }
