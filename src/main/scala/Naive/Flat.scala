@@ -16,15 +16,17 @@ import scala.collection.JavaConverters._
 
 object Flat {
 
-  def test(train: RDD[String], validation: RDD[String], log: mutable.ListBuffer[LogOutput], outputDot: Boolean = false): Unit = {
+  def test(train: RDD[String], validation: RDD[String], log: mutable.ListBuffer[LogOutput],generateDot: Boolean): Unit = {
     val flatRows = train.mapPartitions(JacksonSerializer.serialize(_)).map(BiMax.OurBiMax.splitForValidation(_))
     val flatTotalSchema: mutable.HashSet[Types.AttributeName] = flatRows.reduce((l,r) => l.union(r))
     val flatMandatorySchema = flatRows.reduce((l,r) => l.intersect(r))
     val flatOptionalSchema = flatTotalSchema -- flatMandatorySchema
-    if(outputDot)
+    if(generateDot)
       makeDot(makeGraph(flatTotalSchema))
+    vomit(flatTotalSchema)
     // calculate Precision
     log += LogOutput("FlatPrecision",BigInt(2).pow(flatOptionalSchema.size).toString(),"Flat Precision: ")
+    log += LogOutput("FlatGrouping",1.toString(),"Number of Flat Groups: ")
     // calculate Validation
     if(validation.count() > 0) {
       val vali = validation.mapPartitions(x => JacksonSerializer.serialize(x))
@@ -81,6 +83,11 @@ object Flat {
     }).filter(_ != null)
 
     new PrintWriter(s"""${dir}flat${number}.dot""") { write(s"""graph {\n${nodes.mkString("\n")}\n${edges.mkString("\n")}\n}"""); close }
+  }
+
+  private def vomit(schema: mutable.HashSet[Types.AttributeName]): Unit = {
+    val nodes = s"""\tmain [ shape=box label = <<table border="0" cellborder="1" cellspacing="0">\n${schema.toList.map(Explorer.Types.nameToString(_)).sortBy(_.toString()).map(x => s"""\t\t<tr><td align="left">${x}</td></tr>""").mkString("\n")}\n\t</table>>];"""
+    new PrintWriter(s"""vomit.dot""") { write(s"""graph {\n${nodes}\n}"""); close }
   }
   //dot -Tpdf flat.dot -o flat.pdf
 

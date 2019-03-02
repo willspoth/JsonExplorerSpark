@@ -11,7 +11,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 object KMeans {
-  def test(train: RDD[String], validation: RDD[String], log: mutable.ListBuffer[LogOutput], bimax: ListBuffer[(mutable.HashSet[Types.AttributeName], mutable.HashSet[Types.AttributeName])] , k: Int = 5): (Array[Array[Double]],Array[Array[Double]],Array[Array[Double]]) = {
+  def test(train: RDD[String], validation: RDD[String], log: mutable.ListBuffer[LogOutput], bimax: ListBuffer[(mutable.HashSet[Types.AttributeName], mutable.HashSet[Types.AttributeName])],generateDot: Boolean, k: Int = 5): (Array[Array[Double]],Array[Array[Double]],Array[Array[Double]]) = {
     val verboseRows: ListBuffer[(mutable.HashSet[AttributeName], mutable.HashSet[AttributeName],Int)] = train.mapPartitions(JacksonSerializer.serialize(_)).map(BiMax.OurBiMax.splitForValidation(_)).aggregate(scala.collection.mutable.HashMap[scala.collection.mutable.HashSet[AttributeName],Int]())(mergeValue,mergeCombiners)
       .map(x => Tuple3(x._1,scala.collection.mutable.HashSet[AttributeName](),x._2)).toList.to[ListBuffer]
 
@@ -67,10 +67,11 @@ object KMeans {
       }
     }))
     */
-
-    makeGraph(clusteredValues)
+    if(generateDot)
+      makeGraph(clusteredValues)
     // calculate Precision
     log += LogOutput("KMeansPrecision",clusteredValues.map(x => BigInt(2).pow(x._2.size)).reduce(_+_).toString(),"KMeans Precision: ")
+    log += LogOutput("KMeansGrouping",k.toString(),"Number of KMeans Groups: ")
     // calculate Validation
     if(validation.count() > 0) {
       val vali = validation.mapPartitions(x => JacksonSerializer.serialize(x))

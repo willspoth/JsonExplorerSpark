@@ -30,7 +30,7 @@ object SparkMain {
 
     log += LogOutput("Date",Calendar.getInstance().getTime().toString,"Date: ")
 
-    val(inputFile, memory, useUI, doNMF,spark,name,outputLog,trainPercent,validationSize,k,testMode) = readArgs(args) // Creates the Spark session with its config values.
+    val(inputFile, memory, useUI, doNMF,spark,name,outputLog,trainPercent,validationSize,k,testMode,shouldViz,generateDot) = readArgs(args) // Creates the Spark session with its config values.
 
 
     val startTime = System.currentTimeMillis() // Start timer
@@ -110,12 +110,14 @@ object SparkMain {
           log += LogOutput("Precision",BiMax.OurBiMax.calculatePrecision(ListBuffer[Any](),g,l).toString(),"Precision: ")
           val schemaSet = OurBiMax.graphToSchemaSet(root,g,l)
           bimaxSchema = schemaSet.map { case (m, o) => Tuple2(mutable.HashSet[AttributeName](), m ++ o) }
+          log += LogOutput("Grouping",schemaSet.size.toString(),"Number of Groups: ")
 
           if(validationSize > 0) {
             val vali = validation.mapPartitions(x => JacksonSerializer.serialize(x)).map(x => OurBiMax.splitForValidation(x)).map(x => BiMax.OurBiMax.calculateValidation(x, schemaSet.map { case (m, o) => Tuple2(mutable.HashSet[AttributeName](), m ++ o) })).reduce(_ + _)
             log += LogOutput("Validation", ((vali / validation.count().toDouble) * 100.0).toString(), "Validation: ", "%")
           }
-          Viz.BiMaxViz.viz(name,root,g,l)
+          if(generateDot)
+            Viz.BiMaxViz.viz(name,root,g,l)
 
       }
 
@@ -128,9 +130,9 @@ object SparkMain {
     log += LogOutput("TotalTime",(endTime - startTime).toString,"Total execution time: ", " ms")
 
     if(testMode){ // naive flat comparison
-      //Flat.test(train,validation,log,true)
-      //Verbose.test(train,validation,log)
-      val temp = Naive.KMeans.test(train,validation,log,bimaxSchema, k)
+      Flat.test(train,validation,log,generateDot)
+      Verbose.test(train,validation,log,generateDot)
+      val temp = Naive.KMeans.test(train,validation,log,bimaxSchema,generateDot, k)
       orig=temp._1;kmeans=temp._2;bimax=temp._3
       //println(log.map(_.toString).mkString("\n"))
     }
@@ -143,13 +145,13 @@ object SparkMain {
     else
       println(log.map(_.toString).mkString("\n"))
 
-    if(orig != null && kmeans != null && bimax != null)
+    if(shouldViz && (orig != null && kmeans != null && bimax != null))
       Viz.KMeansViz.viz(orig,kmeans,bimax)
 
   }
 
 
-  def readArgs(args: Array[String]): (String,Option[Boolean],Boolean,Boolean,SparkSession,String,Boolean,Double,Int,Int,Boolean) = {
+  def readArgs(args: Array[String]): (String,Option[Boolean],Boolean,Boolean,SparkSession,String,Boolean,Double,Int,Int,Boolean,Boolean,Boolean) = {
     if(args.size == 0 || args.size%2 == 0) {
       println("Unexpected Argument, should be, filename -master xxx -name xxx -sparkinfo xxx -sparkinfo xxx")
       System.exit(0)
@@ -227,7 +229,19 @@ object SparkMain {
       case _ | None => false
     }
 
-    (filename, memory, ui, nmf,spark,name,outputLog,testPercent,validationSize,k,testMode)
+    val viz: Boolean = argMap.get("viz") match {
+      case Some("true" | "t" | "y" | "yes") => true
+      case Some("n" | "no" | "false") => false
+      case _ | None => false
+    }
+
+    val dot: Boolean = argMap.get("dot") match {
+      case Some("true" | "t" | "y" | "yes") => true
+      case Some("n" | "no" | "false") => false
+      case _ | None => false
+    }
+
+    (filename, memory, ui, nmf,spark,name,outputLog,testPercent,validationSize,k,testMode,viz,dot)
   }
 
   // these are special parsers for our data just to get things running, will replace with better solution for recall tests
