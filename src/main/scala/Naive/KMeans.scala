@@ -11,10 +11,12 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 object KMeans {
-  def test(train: RDD[String], validation: RDD[String], log: mutable.ListBuffer[LogOutput], bimax: ListBuffer[(mutable.HashSet[Types.AttributeName], mutable.HashSet[Types.AttributeName])],generateDot: Boolean, k: Int = 5): (Array[Array[Double]],Array[Array[Double]],Array[Array[Double]]) = {
-    val verboseRows: ListBuffer[(mutable.HashSet[AttributeName], mutable.HashSet[AttributeName],Int)] = train.mapPartitions(JacksonSerializer.serialize(_)).map(BiMax.OurBiMax.splitForValidation(_)).aggregate(scala.collection.mutable.HashMap[scala.collection.mutable.HashSet[AttributeName],Int]())(mergeValue,mergeCombiners)
+  def test(train: RDD[String], validation: RDD[String], log: mutable.ListBuffer[LogOutput], bimax: ListBuffer[(mutable.HashSet[Types.AttributeName], mutable.HashSet[Types.AttributeName])],generateDot: Boolean, k: Int = 5, includeMultiplicities:Boolean = false): (Array[Array[Double]],Array[Array[Double]],Array[Array[Double]]) = {
+    var verboseRows: ListBuffer[(mutable.HashSet[AttributeName], mutable.HashSet[AttributeName],Int)] = train.mapPartitions(JacksonSerializer.serialize(_)).map(BiMax.OurBiMax.splitForValidation(_)).aggregate(scala.collection.mutable.HashMap[scala.collection.mutable.HashSet[AttributeName],Int]())(mergeValue,mergeCombiners)
       .map(x => Tuple3(x._1,scala.collection.mutable.HashSet[AttributeName](),x._2)).toList.to[ListBuffer]
 
+    if(!includeMultiplicities)
+      verboseRows = verboseRows.map(x => Tuple3(x._1,x._2,1))
     // sync the index of values
     val baseLookup: mutable.HashMap[AttributeName,Int] = verboseRows.foldLeft(mutable.HashMap[AttributeName,Int]()){case(acc,(mand,opt,i)) => {
       (mand++opt).foreach(x => if (!acc.contains(x)) acc.put(x,acc.size))
@@ -24,9 +26,10 @@ object KMeans {
 
 
     var bimaxOrdered: Array[Array[Double]] = null
+    var bimaxLookup: mutable.HashMap[Types.AttributeName, Int] = null
     if(bimax!= null){
       val groupIDs = verboseRows.map(x => x._1 ++ x._2).map(x => BiMax.OurBiMax.groupID(x,bimax))
-      val bimaxLookup = bimax.foldLeft(mutable.HashMap[AttributeName,Int]()){case(acc,(mand,opt)) => {
+      bimaxLookup = bimax.foldLeft(mutable.HashMap[AttributeName,Int]()){case(acc,(mand,opt)) => {
         (mand++opt).foreach(x => if (!acc.contains(x)) acc.put(x,acc.size))
         acc
       }}
@@ -57,7 +60,9 @@ object KMeans {
       (mand++opt).foreach(x => if (!acc.contains(x)) acc.put(x,acc.size))
       acc
     }}
-    val kmeansFVS: Array[Array[Double]] = toFVS(verboseRows.zip(clusterLabels).sortBy(_._2),kmeansLookup)
+    if(bimaxLookup == null)
+      bimaxLookup = kmeansLookup
+    val kmeansFVS: Array[Array[Double]] = toFVS(verboseRows.zip(clusterLabels).sortBy(_._2),bimaxLookup)
 
     // check for merged groups
     /*
@@ -100,7 +105,7 @@ object KMeans {
   }
 
   def toFVS(rows: ListBuffer[((mutable.HashSet[Types.AttributeName], mutable.HashSet[Types.AttributeName], Int), Int)], lookup: mutable.HashMap[AttributeName,Int]): Array[Array[Double]] = {
-    rows.flatMap{case((mand,opt,count),i) => {
+    rows.flatMap{case ((mand,opt,count),i) => {
       val buff = mutable.ListBuffer[(mutable.HashSet[Int],mutable.HashSet[Int],Int)]()
       for(x <- 0 until count ){
         val fv: (mutable.HashSet[Int],mutable.HashSet[Int],Int) = Tuple3(mutable.HashSet[Int](),mutable.HashSet[Int](),i)

@@ -25,6 +25,7 @@ object SparkMain {
 
   def main(args: Array[String]): Unit = {
 
+    
 
     val log: mutable.ListBuffer[LogOutput] = mutable.ListBuffer[LogOutput]()
 
