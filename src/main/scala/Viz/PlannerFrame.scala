@@ -8,7 +8,7 @@ import JsonExplorer.SparkMain
 import Optimizer.{ConvertOperatorTree, Planner}
 import javax.swing._
 
-class PlannerFrame(root:JsonExtractionRoot, useUI: Boolean) extends JFrame {
+class PlannerFrame(root:JsonExtractionRoot, useUI: Boolean, infer: Boolean = false) extends JFrame {
 
   var plannerDone = false
 
@@ -16,7 +16,7 @@ class PlannerFrame(root:JsonExtractionRoot, useUI: Boolean) extends JFrame {
   val kse_intervals = Planner.buildOperatorTree(root) // updates root by reference
 
   // finds the largest interval, this will be the starting kse
-  val kse_threshold = Planner.inferKSE(kse_intervals.sortBy(_._2))
+  val kse_threshold: Double = if(infer) Planner.inferKSE(kse_intervals.sortBy(_._2)) else kse_intervals.map(_._2).max + 1.0
   Planner.setNaiveTypes(root)
 
   val (data,labels) = kse_intervals.flatMap(x => {

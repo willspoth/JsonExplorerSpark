@@ -11,7 +11,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
 object KMeans {
-  def test(train: RDD[String], validation: RDD[String], log: mutable.ListBuffer[LogOutput], bimax: ListBuffer[(mutable.HashSet[Types.AttributeName], mutable.HashSet[Types.AttributeName])],generateDot: Boolean, k: Int = 5, includeMultiplicities:Boolean = false): (Array[Array[Double]],Array[Array[Double]],Array[Array[Double]]) = {
+  def test(train: RDD[String], validation: RDD[String], log: mutable.ListBuffer[LogOutput], bimax: ListBuffer[(mutable.HashSet[Types.AttributeName], mutable.HashSet[Types.AttributeName])],generateDot: Boolean, k: Int = 3, includeMultiplicities:Boolean = false): (Array[Array[Double]],Array[Array[Double]],Array[Array[Double]]) = {
     var verboseRows: ListBuffer[(mutable.HashSet[AttributeName], mutable.HashSet[AttributeName],Int)] = train.mapPartitions(JacksonSerializer.serialize(_)).map(BiMax.OurBiMax.splitForValidation(_)).aggregate(scala.collection.mutable.HashMap[scala.collection.mutable.HashSet[AttributeName],Int]())(mergeValue,mergeCombiners)
       .map(x => Tuple3(x._1,scala.collection.mutable.HashSet[AttributeName](),x._2)).toList.to[ListBuffer]
 
@@ -28,12 +28,27 @@ object KMeans {
     var bimaxOrdered: Array[Array[Double]] = null
     var bimaxLookup: mutable.HashMap[Types.AttributeName, Int] = null
     if(bimax!= null){
-      val groupIDs = verboseRows.map(x => x._1 ++ x._2).map(x => BiMax.OurBiMax.groupID(x,bimax))
+      val groupIDs = verboseRows.map(x => x._1 ++ x._2).map(x => BiMax.OurBiMax.groupID(x,bimax)).map(_+1)
       bimaxLookup = bimax.foldLeft(mutable.HashMap[AttributeName,Int]()){case(acc,(mand,opt)) => {
         (mand++opt).foreach(x => if (!acc.contains(x)) acc.put(x,acc.size))
         acc
       }}
       bimaxOrdered = toFVS(verboseRows.zip(groupIDs).sortBy(_._2),bimaxLookup)
+      if(generateDot){
+        val clusteredValues = verboseRows.zip(groupIDs).sortBy(_._2).foldLeft(mutable.HashMap[Int,(mutable.HashSet[AttributeName], mutable.HashSet[AttributeName])]()){case(acc,((mand,opt,i),c)) => {
+          acc.get(c) match {
+            case Some((m,o)) =>
+              val newMand = m.intersect(mand)
+              val leftOver = (m -- newMand).union(mand -- newMand)
+              val newOpt = opt.union(o).union(leftOver)
+              acc.put(c,(newMand,newOpt))
+            case None =>
+              acc.put(c,(mand,opt))
+          }
+          acc
+        }}.toList.map(_._2).to[ListBuffer]
+        makeGraph(clusteredValues,"Ours")
+      }
     }
 
 
@@ -62,7 +77,7 @@ object KMeans {
     }}
     if(bimaxLookup == null)
       bimaxLookup = kmeansLookup
-    val kmeansFVS: Array[Array[Double]] = toFVS(verboseRows.zip(clusterLabels).sortBy(_._2),bimaxLookup)
+    val kmeansFVS: Array[Array[Double]] = toFVS(verboseRows.zip(clusterLabels.map(_+1)).sortBy(_._2),bimaxLookup)
 
     // check for merged groups
     /*
@@ -99,9 +114,9 @@ object KMeans {
     s1 ++ s2.map{ case (k,v) => k -> (v + s1.getOrElse(k,0)) }
   }
 
-  private def makeGraph(schemas: ListBuffer[(mutable.HashSet[AttributeName], mutable.HashSet[AttributeName])]): Unit = {
+  private def makeGraph(schemas: ListBuffer[(mutable.HashSet[AttributeName], mutable.HashSet[AttributeName])], name: String = "KMeans"): Unit = {
     schemas.zipWithIndex
-      .foreach(x => Flat.makeDot(Flat.makeGraph(x._1._1++x._1._2),"KMeans/",x._2.toString))
+      .foreach(x => Flat.makeDot(Flat.makeGraph(x._1._1++x._1._2),name+"/",x._2.toString))
   }
 
   def toFVS(rows: ListBuffer[((mutable.HashSet[Types.AttributeName], mutable.HashSet[Types.AttributeName], Int), Int)], lookup: mutable.HashMap[AttributeName,Int]): Array[Array[Double]] = {
@@ -116,8 +131,8 @@ object KMeans {
       buff
     }}.map{case(mand,opt,i) => {
       val fv: Array[Double] =  new Array[Double](lookup.size)
-      mand.foreach(x => fv(x) = (i+1).toDouble)
-      opt.foreach(x => fv(x) = (i+1).toDouble)
+      mand.foreach(x => fv(x) = i.toDouble)
+      opt.foreach(x => fv(x) = i.toDouble)
       fv
     }}.toArray
   }
