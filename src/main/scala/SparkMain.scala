@@ -299,8 +299,3 @@ object SparkMain {
 
 
 }
-
-/*
-dynamic time warping
-entity splitting
- */
