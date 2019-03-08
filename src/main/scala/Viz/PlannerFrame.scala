@@ -8,7 +8,7 @@ import JsonExplorer.SparkMain
 import Optimizer.{ConvertOperatorTree, Planner}
 import javax.swing._
 
-class PlannerFrame(root:JsonExtractionRoot, useUI: Boolean, infer: Boolean = false) extends JFrame {
+class PlannerFrame(root:JsonExtractionRoot, useUI: Boolean, infer: Boolean = true) extends JFrame {
 
   var plannerDone = false
 

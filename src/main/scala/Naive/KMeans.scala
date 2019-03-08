@@ -16,7 +16,7 @@ object KMeans {
       .map(x => Tuple3(x._1,scala.collection.mutable.HashSet[AttributeName](),x._2)).toList.to[ListBuffer]
 
     if(!includeMultiplicities)
-      verboseRows = verboseRows.map(x => Tuple3(x._1,x._2,1))
+      verboseRows = verboseRows.map(x => Tuple3(x._1,x._2,math.min(x._3,1)))
     // sync the index of values
     val baseLookup: mutable.HashMap[AttributeName,Int] = verboseRows.foldLeft(mutable.HashMap[AttributeName,Int]()){case(acc,(mand,opt,i)) => {
       (mand++opt).foreach(x => if (!acc.contains(x)) acc.put(x,acc.size))
@@ -48,6 +48,13 @@ object KMeans {
           acc
         }}.toList.map(_._2).to[ListBuffer]
         makeGraph(clusteredValues,"Ours")
+        /*
+        val forVerboseOutput = ListBuffer[(mutable.HashSet[AttributeName], mutable.HashSet[AttributeName])]()
+        for (i <- 1 until 11) {
+          forVerboseOutput += Tuple2(verboseRows.zip(groupIDs).filter(_._2 == i).head._1._1,verboseRows.zip(groupIDs).filter(_._2 == i).head._1._1)
+        }
+        makeGraph(forVerboseOutput, "Verbose")
+        */
       }
     }
 
@@ -69,6 +76,9 @@ object KMeans {
       }
       acc
     }}.toList.map(_._2).to[ListBuffer]
+
+
+    log += LogOutput("UsedK",clusterLabels.distinct.size.toString,"Number of K Used: ")
 
 
     val kmeansLookup: mutable.HashMap[AttributeName,Int] = verboseRows.zip(clusterLabels).sortBy(_._2).map(_._1).foldLeft(mutable.HashMap[AttributeName,Int]()){case(acc,(mand,opt,i)) => {

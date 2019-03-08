@@ -25,7 +25,7 @@ object SparkMain {
 
   def main(args: Array[String]): Unit = {
 
-    
+
 
     val log: mutable.ListBuffer[LogOutput] = mutable.ListBuffer[LogOutput]()
 
@@ -33,6 +33,9 @@ object SparkMain {
 
     val(inputFile, memory, useUI, doNMF,spark,name,outputLog,trainPercent,validationSize,k,testMode,shouldViz,generateDot) = readArgs(args) // Creates the Spark session with its config values.
 
+
+    //spark.read.json(inputFile).schema.printTreeString()
+    //???
 
     val startTime = System.currentTimeMillis() // Start timer
 
@@ -51,6 +54,7 @@ object SparkMain {
     val validation: RDD[String] = data(1)
     log += LogOutput("TestSize",train.count().toString,"TestSize: ")
     log += LogOutput("ValidationSize",validation.count().toString,"ValidationSize: ")
+
 
 
     /*
