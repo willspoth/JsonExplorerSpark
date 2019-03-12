@@ -8,6 +8,7 @@ object Serializer {
   /** Preforms the initial serialization step
     * This dataframe is then cached and can be used during clustering for correlation
     * Also handles the initial conversion to our JsonExplorer types
+    * @deprecated
     *
     */
 

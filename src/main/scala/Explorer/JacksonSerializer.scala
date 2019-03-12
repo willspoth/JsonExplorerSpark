@@ -6,6 +6,7 @@ import com.fasterxml.jackson.core.JsonToken._
 
 object JacksonSerializer {
 
+  // custom parser, converts to our type annotation and strips values for compact form
   private def getJEObj(parser: JsonParser): JsonExplorerType = {
     // stack containing previous JsonExplorerType
     val JEStack: scala.collection.mutable.Stack[JsonExplorerType] = scala.collection.mutable.Stack[JsonExplorerType]()
@@ -43,7 +44,12 @@ object JacksonSerializer {
     throw new UnknownTypeException("Unescaped")
   }
 
-
+  /** Used to serialize each row into our notation. Json Explorer Types are our parsable representation of the row without the actual value attached for compactness. Used with mapPartitions.
+    *
+    *  @param rows set of incoming row for
+    *  @return set of JsonExplorerTypes, each JET can be recursively shredded to select out attribute names and attribute types
+    *
+    */
   def serialize(rows: Iterator[String]): Iterator[JsonExplorerType] = {
 
     // local collector, collects attributeName and type and it's count.

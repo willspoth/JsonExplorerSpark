@@ -134,6 +134,8 @@ object SparkMain {
     log += LogOutput("FVCreationTime",FVRunTime.toString,"FV Creation Took: "," ms")
     log += LogOutput("TotalTime",(endTime - startTime).toString,"Total execution time: ", " ms")
 
+
+    // run naive implementation
     if(testMode){ // naive flat comparison
       Flat.test(train,validation,log,generateDot)
       Verbose.test(train,validation,log,generateDot)
@@ -155,7 +157,7 @@ object SparkMain {
 
   }
 
-
+  // reads command line args
   def readArgs(args: Array[String]): (String,Option[Boolean],Boolean,Boolean,SparkSession,String,Boolean,Double,Int,Int,Boolean,Boolean,Boolean) = {
     if(args.size == 0 || args.size%2 == 0) {
       println("Unexpected Argument, should be, filename -master xxx -name xxx -sparkinfo xxx -sparkinfo xxx")
@@ -180,8 +182,8 @@ object SparkMain {
     }
 
     val ui: Boolean = argMap.get("ui") match {
-      case Some("memory" | "inmemory" | "true" | "t" | "y" | "yes") => true
-      case Some("n" | "no" | "false" | "disk") => false
+      case Some("true" | "t" | "y" | "yes") => true
+      case Some("n" | "no" | "false") => false
       case _ | None => false
     }
 
@@ -247,49 +249,6 @@ object SparkMain {
     }
 
     (filename, memory, ui, nmf,spark,name,outputLog,testPercent,validationSize,k,testMode,viz,dot)
-  }
-
-  // these are special parsers for our data just to get things running, will replace with better solution for recall tests
-
-  def github(): Unit = {
-    val file = new File("C:\\Users\\Will\\Desktop\\JsonData\\github1m.json")
-    val bw = new BufferedWriter(new FileWriter(file))
-    for( a <- 1 to 100){
-      bw.write(scala.io.Source.fromFile("C:\\Users\\Will\\Desktop\\JsonData\\github\\github"+a.toString+".json").mkString+'\n')
-      println(a)
-    }
-    bw.close()
-    ???
-  }
-
-
-  def clean(inputName: String, rowLimit: Int = 0): Unit = {
-    val in = new File(inputName)
-    val br = new BufferedReader(new FileReader(in))
-    val out = new File(inputName+"out")
-    val bw = new BufferedWriter(new FileWriter(out))
-    var rowCount: Int = 0
-    var wrongCount: Int = 0
-    var line: String = null
-    var break: Boolean = false
-    while(((rowCount < rowLimit) || (rowLimit == 0)) && ((line = br.readLine())!= null) && !break){
-      if(line != null && line.size > 1 && (line.charAt(0).equals('{') && line.charAt(line.size-1).equals('}'))) {
-        bw.write(line + '\n')
-        rowCount += 1
-        if(rowCount % 100000 == 0)
-          println(rowCount.toString + " rows so far" + wrongCount.toString + " wrong lines found")
-      } else {
-        wrongCount += 1
-        if(wrongCount%100 == 0) {
-          break = true
-          System.err.println(wrongCount.toString + " wrong lines found")
-        }
-      }
-    }
-    println(rowCount)
-    br.close()
-    bw.close()
-    ???
   }
 
   case class LogOutput(label:String, value:String, printPrefix:String, printSuffix:String = ""){
