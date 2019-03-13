@@ -1,0 +1,648 @@
+<!DOCTYPE html >
+<html>
+        <head>
+          <title>Explorer - JsonExplorer documentation - Explorer</title>
+          <meta name="description" content="Explorer - JsonExplorer documentation - Explorer" />
+          <meta name="keywords" content="Explorer JsonExplorer documentation Explorer" />
+          <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+          
+      <link href="../lib/template.css" media="screen" type="text/css" rel="stylesheet" />
+      <link href="../lib/diagrams.css" media="screen" type="text/css" rel="stylesheet" id="diagrams-css" />
+      <script type="text/javascript" src="../lib/jquery.js" id="jquery-js"></script>
+      <script type="text/javascript" src="../lib/jquery-ui.js"></script>
+      <script type="text/javascript" src="../lib/template.js"></script>
+      <script type="text/javascript" src="../lib/tools.tooltip.js"></script>
+      
+      <script type="text/javascript">
+         if(top === self) {
+            var url = '../index.html';
+            var hash = 'Explorer.package';
+            var anchor = window.location.hash;
+            var anchor_opt = '';
+            if (anchor.length >= 1)
+              anchor_opt = '@' + anchor.substring(1);
+            window.location.href = url + '#' + hash + anchor_opt;
+         }
+   	  </script>
+    
+        </head>
+        <body class="value">
+      <div id="definition">
+        <img alt="Package" src="../lib/package_big.png" />
+        
+        <h1>Explorer</h1><span class="permalink">
+      <a href="../index.html#Explorer.package" title="Permalink" target="_top">
+        <img src="../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      </div>
+
+      <h4 id="signature" class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">package</span>
+      </span>
+      <span class="symbol">
+        <span class="name">Explorer</span>
+      </span>
+      </h4>
+      
+          <div id="comment" class="fullcommenttop"></div>
+        
+
+      <div id="mbrsel">
+        <div id="textfilter"><span class="pre"></span><span class="input"><input id="mbrsel-input" type="text" accesskey="/" /></span><span class="post"></span></div>
+        
+        
+        <div id="visbl">
+            <span class="filtertype">Visibility</span>
+            <ol><li class="public in"><span>Public</span></li><li class="all out"><span>All</span></li></ol>
+          </div>
+      </div>
+
+      <div id="template">
+        <div id="allMembers">
+        
+
+        <div id="types" class="types members">
+              <h3>Type Members</h3>
+              <ol><li name="Explorer.Attribute" visbl="pub" data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="AttributeextendsProductwithSerializable"></a>
+      <a id="Attribute:Attribute"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a href="Attribute.html"><span class="name">Attribute</span></a><span class="params">()</span><span class="result"> extends <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../index.html#Explorer.package@AttributeextendsProductwithSerializable" title="Permalink" target="_top">
+        <img src="../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      <p class="shortcomment cmt">Class to express JSON attribute.</p><div class="fullcomment"><div class="comment cmt"><p>Class to express JSON attribute. Created by Extraction and stored by JsonExtractionSchema.</p></div></div>
+    </li><li name="Explorer.FeatureVector" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="FeatureVectorextendsProductwithSerializable"></a>
+      <a id="FeatureVector:FeatureVector"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a href="FeatureVector.html"><span class="name">FeatureVector</span></a><span class="params">(<span name="fv">fv: <span class="extype" name="scala.Array">Array</span>[<span class="extype" name="scala.Byte">Byte</span>]</span>)</span><span class="result"> extends <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../index.html#Explorer.package@FeatureVectorextendsProductwithSerializable" title="Permalink" target="_top">
+        <img src="../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li><li name="Explorer.JE_Array" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="JE_ArrayextendsJsonExplorerTypewithProductwithSerializable"></a>
+      <a id="JE_Array:JE_Array"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a href="JE_Array.html"><span class="name">JE_Array</span></a><span class="params">(<span name="xs">xs: <span class="extype" name="scala.collection.mutable.ListBuffer">ListBuffer</span>[<a href="JsonExplorerType.html" class="extype" name="Explorer.JsonExplorerType">JsonExplorerType</a>]</span>)</span><span class="result"> extends <a href="JsonExplorerType.html" class="extype" name="Explorer.JsonExplorerType">JsonExplorerType</a> with <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../index.html#Explorer.package@JE_ArrayextendsJsonExplorerTypewithProductwithSerializable" title="Permalink" target="_top">
+        <img src="../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li><li name="Explorer.JE_Basic" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="JE_BasicextendsJsonExplorerTypewithProductwithSerializable"></a>
+      <a id="JE_Basic:JE_Basic"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a href="JE_Basic.html"><span class="name">JE_Basic</span></a><span class="params">(<span name="xs">xs: <span class="extype" name="scala.collection.mutable.HashMap">HashMap</span>[<a href="JsonExplorerType.html" class="extype" name="Explorer.JsonExplorerType">JsonExplorerType</a>, <span class="extype" name="scala.Int">Int</span>]</span>)</span><span class="result"> extends <a href="JsonExplorerType.html" class="extype" name="Explorer.JsonExplorerType">JsonExplorerType</a> with <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../index.html#Explorer.package@JE_BasicextendsJsonExplorerTypewithProductwithSerializable" title="Permalink" target="_top">
+        <img src="../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li><li name="Explorer.JE_Obj_Array" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="JE_Obj_ArrayextendsJsonExplorerTypewithProductwithSerializable"></a>
+      <a id="JE_Obj_Array:JE_Obj_Array"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a href="JE_Obj_Array.html"><span class="name">JE_Obj_Array</span></a><span class="params">(<span name="xs">xs: <span class="extype" name="scala.collection.mutable.ListBuffer">ListBuffer</span>[<a href="JsonExplorerType.html" class="extype" name="Explorer.JsonExplorerType">JsonExplorerType</a>]</span>)</span><span class="result"> extends <a href="JsonExplorerType.html" class="extype" name="Explorer.JsonExplorerType">JsonExplorerType</a> with <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../index.html#Explorer.package@JE_Obj_ArrayextendsJsonExplorerTypewithProductwithSerializable" title="Permalink" target="_top">
+        <img src="../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li><li name="Explorer.JE_Object" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="JE_ObjectextendsJsonExplorerTypewithProductwithSerializable"></a>
+      <a id="JE_Object:JE_Object"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a href="JE_Object.html"><span class="name">JE_Object</span></a><span class="params">(<span name="xs">xs: <span class="extype" name="scala.collection.mutable.HashMap">HashMap</span>[<span class="extype" name="scala.Predef.String">String</span>, <a href="JsonExplorerType.html" class="extype" name="Explorer.JsonExplorerType">JsonExplorerType</a>]</span>)</span><span class="result"> extends <a href="JsonExplorerType.html" class="extype" name="Explorer.JsonExplorerType">JsonExplorerType</a> with <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../index.html#Explorer.package@JE_ObjectextendsJsonExplorerTypewithProductwithSerializable" title="Permalink" target="_top">
+        <img src="../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li><li name="Explorer.JE_Var_Object" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="JE_Var_ObjectextendsJsonExplorerTypewithProductwithSerializable"></a>
+      <a id="JE_Var_Object:JE_Var_Object"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a href="JE_Var_Object.html"><span class="name">JE_Var_Object</span></a><span class="params">(<span name="xs">xs: <span class="extype" name="scala.Predef.Map">Map</span>[<span class="extype" name="scala.Predef.String">String</span>, <a href="JsonExplorerType.html" class="extype" name="Explorer.JsonExplorerType">JsonExplorerType</a>]</span>)</span><span class="result"> extends <a href="JsonExplorerType.html" class="extype" name="Explorer.JsonExplorerType">JsonExplorerType</a> with <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../index.html#Explorer.package@JE_Var_ObjectextendsJsonExplorerTypewithProductwithSerializable" title="Permalink" target="_top">
+        <img src="../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li><li name="Explorer.JsonExplorerType" visbl="pub" data-isabs="true" fullComment="yes" group="Ungrouped">
+      <a id="JsonExplorerTypeextendsAnyRef"></a>
+      <a id="JsonExplorerType:JsonExplorerType"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier">sealed </span>
+        <span class="kind">trait</span>
+      </span>
+      <span class="symbol">
+        <a href="JsonExplorerType.html"><span class="name">JsonExplorerType</span></a><span class="result"> extends <span class="extype" name="scala.AnyRef">AnyRef</span></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../index.html#Explorer.package@JsonExplorerTypeextendsAnyRef" title="Permalink" target="_top">
+        <img src="../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      <p class="shortcomment cmt">Our type conversion, a JSON row can be converted into a JsonExplorerType (JET).</p><div class="fullcomment"><div class="comment cmt"><p>Our type conversion, a JSON row can be converted into a JsonExplorerType (JET). The outer record with be a JE_Object that can be recursively traversed to recover all attributes.</p></div></div>
+    </li><li name="Explorer.JsonExtractionRoot" visbl="pub" data-isabs="false" fullComment="yes" group="Ungrouped">
+      <a id="JsonExtractionRootextendsProductwithSerializable"></a>
+      <a id="JsonExtractionRoot:JsonExtractionRoot"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a href="JsonExtractionRoot.html"><span class="name">JsonExtractionRoot</span></a><span class="params">()</span><span class="result"> extends <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../index.html#Explorer.package@JsonExtractionRootextendsProductwithSerializable" title="Permalink" target="_top">
+        <img src="../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      <p class="shortcomment cmt">Special root object.</p><div class="fullcomment"><div class="comment cmt"><p>Special root object. Primarily use is to hold all JsonExtractionSchemas and act as a JsonExtractionSchema for root attributes.</p></div></div>
+    </li><li name="Explorer.JsonExtractionSchema" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="JsonExtractionSchemaextendsProductwithSerializable"></a>
+      <a id="JsonExtractionSchema:JsonExtractionSchema"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a href="JsonExtractionSchema.html"><span class="name">JsonExtractionSchema</span></a><span class="params">()</span><span class="result"> extends <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../index.html#Explorer.package@JsonExtractionSchemaextendsProductwithSerializable" title="Permalink" target="_top">
+        <img src="../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li><li name="Explorer.UnknownTypeException" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="UnknownTypeExceptionextendsExceptionwithProductwithSerializable"></a>
+      <a id="UnknownTypeException:UnknownTypeException"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier">final </span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a href="UnknownTypeException.html"><span class="name">UnknownTypeException</span></a><span class="params">(<span name="message">message: <span class="extype" name="scala.Predef.String">String</span> = <span class="symbol">&quot;&quot;</span></span>, <span name="cause">cause: <span class="extype" name="scala.Throwable">Throwable</span> = <span class="symbol">None.orNull</span></span>)</span><span class="result"> extends <span class="extype" name="scala.Exception">Exception</span> with <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../index.html#Explorer.package@UnknownTypeExceptionextendsExceptionwithProductwithSerializable" title="Permalink" target="_top">
+        <img src="../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li><li name="Explorer.node" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="nodeextendsHashMap[Any,Option[Explorer.node]]withProductwithSerializable"></a>
+      <a id="node:node"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">case class</span>
+      </span>
+      <span class="symbol">
+        <a href="node.html"><span class="name">node</span></a><span class="params">()</span><span class="result"> extends <span class="extype" name="scala.collection.mutable.HashMap">HashMap</span>[<span class="extype" name="scala.Any">Any</span>, <span class="extype" name="scala.Option">Option</span>[<a href="node.html" class="extype" name="Explorer.node">node</a>]] with <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../index.html#Explorer.package@nodeextendsHashMap[Any,Option[Explorer.node]]withProductwithSerializable" title="Permalink" target="_top">
+        <img src="../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      <p class="shortcomment cmt">Used for efficient traversal of JsonExplorerRoot's attribute list, so structure is preserved</p>
+    </li></ol>
+            </div>
+
+        
+
+        <div id="values" class="values members">
+              <h3>Value Members</h3>
+              <ol><li name="Explorer.Extract" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="Extract"></a>
+      <a id="Extract:Extract"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a href="Extract$.html"><span class="name">Extract</span></a>
+      </span>
+      </h4><span class="permalink">
+      <a href="../index.html#Explorer.package@Extract" title="Permalink" target="_top">
+        <img src="../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      <p class="shortcomment cmt">Used with flatMap and combineByKey to output all possible rows in JET form with the number of times it occurred</p>
+    </li><li name="Explorer.FeatureVectorCreator" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="FeatureVectorCreator"></a>
+      <a id="FeatureVectorCreator:FeatureVectorCreator"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a href="FeatureVectorCreator$.html"><span class="name">FeatureVectorCreator</span></a>
+      </span>
+      </h4><span class="permalink">
+      <a href="../index.html#Explorer.package@FeatureVectorCreator" title="Permalink" target="_top">
+        <img src="../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      <p class="shortcomment cmt">Use the plan to generate localized feature vectors, similar to extract but needs to pivot arrays of objects.</p>
+    </li><li name="Explorer.JE_Array" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="JE_Array"></a>
+      <a id="JE_Array:JE_Array"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a href="JE_Array$.html"><span class="name">JE_Array</span></a><span class="result"> extends <a href="JsonExplorerType.html" class="extype" name="Explorer.JsonExplorerType">JsonExplorerType</a> with <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../index.html#Explorer.package@JE_Array" title="Permalink" target="_top">
+        <img src="../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li><li name="Explorer.JE_Basic" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="JE_Basic"></a>
+      <a id="JE_Basic:JE_Basic"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a href="JE_Basic$.html"><span class="name">JE_Basic</span></a><span class="result"> extends <a href="JsonExplorerType.html" class="extype" name="Explorer.JsonExplorerType">JsonExplorerType</a> with <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../index.html#Explorer.package@JE_Basic" title="Permalink" target="_top">
+        <img src="../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li><li name="Explorer.JE_Boolean" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="JE_Boolean"></a>
+      <a id="JE_Boolean:JE_Boolean"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a href="JE_Boolean$.html"><span class="name">JE_Boolean</span></a><span class="result"> extends <a href="JsonExplorerType.html" class="extype" name="Explorer.JsonExplorerType">JsonExplorerType</a> with <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../index.html#Explorer.package@JE_Boolean" title="Permalink" target="_top">
+        <img src="../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li><li name="Explorer.JE_Empty_Array" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="JE_Empty_Array"></a>
+      <a id="JE_Empty_Array:JE_Empty_Array"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a href="JE_Empty_Array$.html"><span class="name">JE_Empty_Array</span></a><span class="result"> extends <a href="JsonExplorerType.html" class="extype" name="Explorer.JsonExplorerType">JsonExplorerType</a> with <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../index.html#Explorer.package@JE_Empty_Array" title="Permalink" target="_top">
+        <img src="../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li><li name="Explorer.JE_Empty_Object" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="JE_Empty_Object"></a>
+      <a id="JE_Empty_Object:JE_Empty_Object"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a href="JE_Empty_Object$.html"><span class="name">JE_Empty_Object</span></a><span class="result"> extends <a href="JsonExplorerType.html" class="extype" name="Explorer.JsonExplorerType">JsonExplorerType</a> with <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../index.html#Explorer.package@JE_Empty_Object" title="Permalink" target="_top">
+        <img src="../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li><li name="Explorer.JE_Null" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="JE_Null"></a>
+      <a id="JE_Null:JE_Null"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a href="JE_Null$.html"><span class="name">JE_Null</span></a><span class="result"> extends <a href="JsonExplorerType.html" class="extype" name="Explorer.JsonExplorerType">JsonExplorerType</a> with <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../index.html#Explorer.package@JE_Null" title="Permalink" target="_top">
+        <img src="../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li><li name="Explorer.JE_Numeric" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="JE_Numeric"></a>
+      <a id="JE_Numeric:JE_Numeric"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a href="JE_Numeric$.html"><span class="name">JE_Numeric</span></a><span class="result"> extends <a href="JsonExplorerType.html" class="extype" name="Explorer.JsonExplorerType">JsonExplorerType</a> with <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../index.html#Explorer.package@JE_Numeric" title="Permalink" target="_top">
+        <img src="../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li><li name="Explorer.JE_Obj_Array" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="JE_Obj_Array"></a>
+      <a id="JE_Obj_Array:JE_Obj_Array"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a href="JE_Obj_Array$.html"><span class="name">JE_Obj_Array</span></a><span class="result"> extends <a href="JsonExplorerType.html" class="extype" name="Explorer.JsonExplorerType">JsonExplorerType</a> with <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../index.html#Explorer.package@JE_Obj_Array" title="Permalink" target="_top">
+        <img src="../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li><li name="Explorer.JE_Object" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="JE_Object"></a>
+      <a id="JE_Object:JE_Object"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a href="JE_Object$.html"><span class="name">JE_Object</span></a><span class="result"> extends <a href="JsonExplorerType.html" class="extype" name="Explorer.JsonExplorerType">JsonExplorerType</a> with <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../index.html#Explorer.package@JE_Object" title="Permalink" target="_top">
+        <img src="../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li><li name="Explorer.JE_String" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="JE_String"></a>
+      <a id="JE_String:JE_String"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a href="JE_String$.html"><span class="name">JE_String</span></a><span class="result"> extends <a href="JsonExplorerType.html" class="extype" name="Explorer.JsonExplorerType">JsonExplorerType</a> with <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../index.html#Explorer.package@JE_String" title="Permalink" target="_top">
+        <img src="../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li><li name="Explorer.JE_Tuple" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="JE_Tuple"></a>
+      <a id="JE_Tuple:JE_Tuple"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a href="JE_Tuple$.html"><span class="name">JE_Tuple</span></a><span class="result"> extends <a href="JsonExplorerType.html" class="extype" name="Explorer.JsonExplorerType">JsonExplorerType</a> with <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../index.html#Explorer.package@JE_Tuple" title="Permalink" target="_top">
+        <img src="../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li><li name="Explorer.JE_Unknown" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="JE_Unknown"></a>
+      <a id="JE_Unknown:JE_Unknown"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a href="JE_Unknown$.html"><span class="name">JE_Unknown</span></a><span class="result"> extends <a href="JsonExplorerType.html" class="extype" name="Explorer.JsonExplorerType">JsonExplorerType</a> with <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../index.html#Explorer.package@JE_Unknown" title="Permalink" target="_top">
+        <img src="../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li><li name="Explorer.JE_Var_Object" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="JE_Var_Object"></a>
+      <a id="JE_Var_Object:JE_Var_Object"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a href="JE_Var_Object$.html"><span class="name">JE_Var_Object</span></a><span class="result"> extends <a href="JsonExplorerType.html" class="extype" name="Explorer.JsonExplorerType">JsonExplorerType</a> with <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../index.html#Explorer.package@JE_Var_Object" title="Permalink" target="_top">
+        <img src="../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li><li name="Explorer.JacksonSerializer" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="JacksonSerializer"></a>
+      <a id="JacksonSerializer:JacksonSerializer"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a href="JacksonSerializer$.html"><span class="name">JacksonSerializer</span></a>
+      </span>
+      </h4><span class="permalink">
+      <a href="../index.html#Explorer.package@JacksonSerializer" title="Permalink" target="_top">
+        <img src="../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li><li name="Explorer.ParsingPrimitives" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="ParsingPrimitives"></a>
+      <a id="ParsingPrimitives:ParsingPrimitives"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a href="ParsingPrimitives$.html"><span class="name">ParsingPrimitives</span></a>
+      </span>
+      </h4><span class="permalink">
+      <a href="../index.html#Explorer.package@ParsingPrimitives" title="Permalink" target="_top">
+        <img src="../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      <p class="shortcomment cmt">Used for extraction type checking.</p>
+    </li><li name="Explorer.Serializer" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="Serializer"></a>
+      <a id="Serializer:Serializer"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a href="Serializer$.html"><span class="name">Serializer</span></a>
+      </span>
+      </h4><span class="permalink">
+      <a href="../index.html#Explorer.package@Serializer" title="Permalink" target="_top">
+        <img src="../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li><li name="Explorer.Star" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="Star"></a>
+      <a id="Star:Star"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a href="Star$.html"><span class="name">Star</span></a><span class="result"> extends <span class="extype" name="scala.Product">Product</span> with <span class="extype" name="scala.Serializable">Serializable</span></span>
+      </span>
+      </h4><span class="permalink">
+      <a href="../index.html#Explorer.package@Star" title="Permalink" target="_top">
+        <img src="../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      
+    </li><li name="Explorer.Types" visbl="pub" data-isabs="false" fullComment="no" group="Ungrouped">
+      <a id="Types"></a>
+      <a id="Types:Types"></a>
+      <h4 class="signature">
+      <span class="modifier_kind">
+        <span class="modifier"></span>
+        <span class="kind">object</span>
+      </span>
+      <span class="symbol">
+        <a href="Types$.html"><span class="name">Types</span></a>
+      </span>
+      </h4><span class="permalink">
+      <a href="../index.html#Explorer.package@Types" title="Permalink" target="_top">
+        <img src="../lib/permalink.png" alt="Permalink" />
+      </a>
+    </span>
+      <p class="shortcomment cmt">Common functions to preform on JET's and Attributes</p>
+    </li></ol>
+            </div>
+
+        
+
+        
+        </div>
+
+        <div id="inheritedMembers">
+        
+        
+        </div>
+
+        <div id="groupedMembers">
+        <div class="group" name="Ungrouped">
+              <h3>Ungrouped</h3>
+              
+            </div>
+        </div>
+
+      </div>
+
+      <div id="tooltip"></div>
+
+      <div id="footer">  </div>
+
+
+    </body>
+      </html>
