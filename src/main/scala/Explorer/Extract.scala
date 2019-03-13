@@ -4,6 +4,9 @@ import Explorer.Types.AttributeName
 
 import scala.collection.mutable.ListBuffer
 
+/** Used with flatMap and combineByKey to output all possible rows in JET form with the number of times it occurred
+  *
+  */
 object Extract {
   def ExtractAttributes(row: JsonExplorerType): ListBuffer[(AttributeName,JsonExplorerType)] = {
     val flatMap: ListBuffer[(AttributeName,JsonExplorerType)] = ListBuffer[(AttributeName,JsonExplorerType)]()

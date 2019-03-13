@@ -5,6 +5,11 @@ import Explorer._
 
 import scala.collection.mutable.ListBuffer
 
+
+/** can call rewrite multiple times with different kse to change plan, call keep once happy with choice. Made to be compatible with Viz.PlannerFrame. The recovered JERoot schemas are what's used in the next phase.
+  *
+  * @param root JsonExtractionRoot
+  */
 class ConvertOperatorTree (root: JsonExtractionRoot) {
 
   var allAttributes: scala.collection.mutable.HashMap[AttributeName,Attribute] = null
@@ -200,6 +205,10 @@ class ConvertOperatorTree (root: JsonExtractionRoot) {
     }
 
   }
+
+  /**
+    * collapses arrays to single flat star schema
+    */
 
   private def addStarToSchemas(): Unit = {
     /*

@@ -3,7 +3,9 @@ package Optimizer
 import Explorer.Types.AttributeName
 import Explorer._
 
-
+/**
+  * Initial value population, applies basic type guess information to each attribute, computes key and type entropy and creates initial tree data structure for JERoot
+  */
 object Planner {
 
   // planner builds the initial values and structure, these should be computations that only happen once

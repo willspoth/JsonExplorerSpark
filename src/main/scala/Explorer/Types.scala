@@ -5,6 +5,9 @@ import Explorer.Types.AttributeName
 import scala.collection.mutable.ListBuffer
 
 
+/** Our type conversion, a JSON row can be converted into a JsonExplorerType (JET). The outer record with be a JE_Object that can be recursively traversed to recover all attributes.
+  *
+  */
 sealed trait JsonExplorerType {
   def getType(): JsonExplorerType
   def id(): Int
@@ -17,10 +20,14 @@ case class FeatureVector(fv: Array[Byte]) {
   var Count = 1
 }
 
-
+/** Used for efficient traversal of JsonExplorerRoot's attribute list, so structure is preserved
+  *
+  */
 case class node() extends scala.collection.mutable.HashMap[Any,Option[node]] {}
 
-// used in the extraction phase, this holds information of every type
+/** Class to express JSON attribute. Created by Extraction and stored by JsonExtractionSchema.
+  *
+  */
 case class Attribute() {
   var name: scala.collection.mutable.ListBuffer[Any] = null
   var naiveType: JsonExplorerType = JE_Null
@@ -45,7 +52,9 @@ case class Attribute() {
   }
 }
 
-
+/** Special root object. Primarily use is to hold all JsonExtractionSchemas and act as a JsonExtractionSchema for root attributes.
+  *
+  */
 case class JsonExtractionRoot() {
   var AllAttributes: scala.collection.mutable.HashMap[AttributeName,Attribute] = scala.collection.mutable.HashMap[AttributeName,Attribute]()
   var Tree: node = new node() // the main tree that expresses all objects and should not change
@@ -177,6 +186,9 @@ final case class UnknownTypeException(private val message: String = "",
                                       private val cause: Throwable = None.orNull)
   extends Exception(message, cause)
 
+/** Used for extraction type checking.
+  *
+  */
 object ParsingPrimitives {
   val StringClass = classOf[String]
   val DoubleClass = classOf[java.lang.Double]
@@ -188,7 +200,14 @@ object ParsingPrimitives {
 
 case object Star
 
+/** Common functions to preform on JET's and Attributes
+  *
+  */
 object Types {
+  /** String friendly conversion, mostly used for visual output like println. Not file naming save, see nameToFileString for that
+    *
+    * @param name
+    */
   def nameToString(name: scala.collection.mutable.ListBuffer[Any]): String = {
     if(name.isEmpty)
       return "root"
@@ -205,6 +224,10 @@ object Types {
       return nameString
   }
 
+  /** File friendly name conversion
+    * @deprecated
+    * @param name
+    */
   def nameToFileString(name: Types.AttributeName): String = {
     if(name.isEmpty)
       return "root"
@@ -221,6 +244,11 @@ object Types {
       return nameString
   }
 
+  /** converts any map of attribute names to tree form with max depth for treeViz planning.
+    *
+    * @param attributes
+    * @return node representation, maximum depth
+    */
   def buildNodeTree(attributes: scala.collection.mutable.HashMap[Types.AttributeName,_]): (node,Int) = {
     val depth: Int = attributes.foldLeft(0){case (maxDepth,n) => Math.max(n._1.size,maxDepth)}+1
 
@@ -248,6 +276,8 @@ object Types {
     return (tree,depth)
   }
 
+  /** ListBuffer[Any] to store attribute names, used to avoid potential escaping and danger characters. Integers mean array value, string is object and read left to right similar to dot notation
+    */
   type AttributeName = scala.collection.mutable.ListBuffer[Any]
   type SchemaName = scala.collection.mutable.ListBuffer[Any]
 }

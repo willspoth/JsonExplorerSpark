@@ -5,6 +5,9 @@ import breeze.linalg.{DenseMatrix, DenseVector}
 
 import scala.collection.mutable.ArrayBuffer
 
+/** Use the plan to generate localized feature vectors, similar to extract but needs to pivot arrays of objects.
+  *
+  */
 object FeatureVectorCreator {
 
 
@@ -17,9 +20,9 @@ object FeatureVectorCreator {
 
 
   /*
-    This is a recursive function that takes in a row(JE_Object) and returns a FeatureArrayBuffer
+    This is a recursive function that takes in a row(JE_Object) and returns a FeatureArrayBuffer. ToDo pick better name and make more efficient
    */
-  def extractFVS(prefix: AttributeName, schemas: scala.collection.mutable.HashMap[SchemaName,JsonExtractionSchema], row: JsonExplorerType, fvs: scala.collection.mutable.HashMap[SchemaName,scala.collection.mutable.HashMap[ArrayBuffer[Byte],Int]], currentSchema: SchemaName): Unit = {
+  private def extractFVS(prefix: AttributeName, schemas: scala.collection.mutable.HashMap[SchemaName,JsonExtractionSchema], row: JsonExplorerType, fvs: scala.collection.mutable.HashMap[SchemaName,scala.collection.mutable.HashMap[ArrayBuffer[Byte],Int]], currentSchema: SchemaName): Unit = {
 
     def getSchema(name: AttributeName): JsonExtractionSchema = {
       schemas.get(name) match {

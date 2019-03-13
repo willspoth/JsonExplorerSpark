@@ -8,6 +8,15 @@ import JsonExplorer.SparkMain
 import Optimizer.{ConvertOperatorTree, Planner}
 import javax.swing._
 
+
+/** For iterative User interaction to make a base plan for our second pass. OperatorConverter is the class that does the rewritting and is semi-compatible
+  * @todo currently no ui is functional so a base heuristic is used
+  *
+  * @param root JER with collected information
+  * @param useUI whether to use the ui or default to the interval heuristic directly, mainly used for testing
+  * @param infer false to turn off variable objects, true to use interval heuristic. true by default
+  */
+
 class PlannerFrame(root:JsonExtractionRoot, useUI: Boolean, infer: Boolean = true) extends JFrame {
 
   var plannerDone = false

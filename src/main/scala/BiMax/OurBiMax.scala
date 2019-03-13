@@ -17,6 +17,14 @@ object OurBiMax {
 
   // sparse encoding, multiplicity, alwaysBeenDisjoint
   private type Row = (mutable.HashSet[Int],Int,Boolean) // this is the sparse encoding of the row
+  /**
+    *
+    * @param root The canidate row, row with most attributes
+    * @param subset Rows that are a subset of root row
+    * @param combinedset Rows that are combined set of root row
+    * @param disjointset Rows that are disjoint of root row
+    * @param remainder Child Node made up of combined and disjoint set
+    */
   case class BiMaxNode(root: Row, subset: ListBuffer[Row], combinedset: ListBuffer[Row], disjointset: ListBuffer[Row], remainder: Option[BiMaxNode])
 
   sealed trait Relationship
@@ -75,7 +83,12 @@ object OurBiMax {
 
   }
 
-
+  /** First step of the algorithm to create base BiMax representation of canidates and row relationships
+    *
+    * @param schemaName schema group that these fvs belong to
+    * @param m map of feature vectors and multiplicities
+    * @return List of type BiMaxNode, direct application of the algorithm. Apply heuristics to this structure like merging and grouping.
+    */
   def BiMax(schemaName: SchemaName, m: scala.collection.mutable.HashMap[ArrayBuffer[Byte], Int]): (SchemaName,ListBuffer[BiMaxNode]) = {
     val BiMaxList: ListBuffer[BiMaxNode] = ListBuffer[BiMaxNode]()
     if(m.isEmpty)
@@ -134,6 +147,12 @@ object OurBiMax {
     return checkedNodes
   }
 
+  /** Initialization process for the heuristic, re-arranges list for bottom up heuristic
+    *
+    * @param schemaName schema for this set
+    * @param biMaxList incoming list of BiMaxNodes to apply heuristic to
+    * @return A new list of rewritten BiMaxNodes
+    */
 
   def convertBiMaxNodes(schemaName: SchemaName, biMaxList: ListBuffer[BiMaxNode]): (SchemaName, ListBuffer[RewrittenBiMaxNode]) = {
     val rbn: ListBuffer[RewrittenBiMaxNode] = biMaxList.map(x => {
@@ -156,6 +175,12 @@ object OurBiMax {
   case class entity(mandatoryAttributes: mutable.HashSet[Int], optionalAttributes: mutable.HashSet[Int], featureVectors: ListBuffer[(mutable.HashSet[Int],Int)], combinedMult: Int)
 
   // list of disjoint sets
+  /** Applies bottom up heuristic, currently aggressive merging of BiMaxNodes and splits them into entities
+    *
+    * @param schemaName schema for this set
+    * @param RBNS List of rewritten nodes to perform heuristic on
+    * @return List of disjoint entities with a list of entities with overlap, i.e. ListBuffer[OverlappedEntities] where each element is disjoint
+    */
   def categorizeAttributes(schemaName: SchemaName, RBNS: ListBuffer[RewrittenBiMaxNode]): (SchemaName, ListBuffer[ListBuffer[entity]]) = {
     val entities: ListBuffer[ListBuffer[entity]] = RBNS.map(rbn => { // rbn is a list of nodes
       rbn.map( node => {
