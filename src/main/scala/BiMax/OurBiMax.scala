@@ -200,13 +200,18 @@ object OurBiMax {
     (schemaName,entities)
   }
 
-
-  def buildGraph(root: JsonExtractionRoot, t:Array[(SchemaName,ListBuffer[ListBuffer[entity]])]): (Graph[(mutable.HashSet[Int],mutable.HashSet[Int],SchemaName),DefaultEdge],mutable.HashMap[SchemaName,mutable.ListBuffer[(mutable.HashSet[Int],mutable.HashSet[Int])]]) = {
+  /** Creates a graph representation of our entities, only connects entities that are possible to connect.
+    *
+    * @param root JERoot that contains schema and attribute information to decode feature vectors
+    * @param entities The list of disjoint, similar entities
+    * @return Graph representation of the entities and a lookup table to increase performance
+    */
+  def buildGraph(root: JsonExtractionRoot, entities:Array[(SchemaName,ListBuffer[ListBuffer[entity]])]): (Graph[(mutable.HashSet[Int],mutable.HashSet[Int],SchemaName),DefaultEdge],mutable.HashMap[SchemaName,mutable.ListBuffer[(mutable.HashSet[Int],mutable.HashSet[Int])]]) = {
     val g: Graph[(mutable.HashSet[Int],mutable.HashSet[Int],SchemaName), DefaultEdge] = new DefaultDirectedGraph[(mutable.HashSet[Int],mutable.HashSet[Int],SchemaName), DefaultEdge](new DefaultEdge().getClass)
-    val schemas: List[SchemaName] = t.toList.map(_._1)
+    val schemas: List[SchemaName] = entities.toList.map(_._1)
     val lookup: mutable.HashMap[SchemaName,mutable.ListBuffer[(mutable.HashSet[Int],mutable.HashSet[Int])]] = mutable.HashMap[SchemaName,mutable.ListBuffer[(mutable.HashSet[Int],mutable.HashSet[Int])]]()
 
-    t.foreach{case(schemaName, disjEntities)=>{
+    entities.foreach{case(schemaName, disjEntities)=>{
       disjEntities.foreach(n => {
         n.foreach(e => {
           val fields = Tuple3(e.mandatoryAttributes,e.optionalAttributes--e.mandatoryAttributes,schemaName)
