@@ -33,6 +33,7 @@ object KMeans {
         (mand++opt).foreach(x => if (!acc.contains(x)) acc.put(x,acc.size))
         acc
       }}
+      val OracleRows = verboseRows.zip(groupIDs).sortBy(_._2)
       bimaxOrdered = toFVS(verboseRows.zip(groupIDs).sortBy(_._2),bimaxLookup)
       if(generateDot){
         val clusteredValues = verboseRows.zip(groupIDs).sortBy(_._2).foldLeft(mutable.HashMap[Int,(mutable.HashSet[AttributeName], mutable.HashSet[AttributeName])]()){case(acc,((mand,opt,i),c)) => {

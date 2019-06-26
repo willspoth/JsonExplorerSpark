@@ -52,7 +52,8 @@ object FeatureVectorCreator {
             if (name.nonEmpty && !name.equals(currentSchema)) {
               fv(schema.attributeLookup.get(name).get) = 1
             }
-            xs.foreach(je => extract(name :+ je._1, je._2, fv))
+            xs.foreach(je =>
+              extract(name ++ List(je._1), je._2, fv))
           }
         case JE_Array(xs) =>
           if(containsName(name,currentSchema)){ // this attribute is a separate
@@ -63,7 +64,7 @@ object FeatureVectorCreator {
               fv(schema.attributeLookup.get(name).get) = 1
             }
             xs.foreach(je => {
-              extract(name :+ Star, je, fv)
+              extract(name ++ List(Star), je, fv)
             })
           }
       }
@@ -93,7 +94,7 @@ object FeatureVectorCreator {
           case JE_Obj_Array =>
             arr.xs.foreach(jet => {
               val fv: ArrayBuffer[Byte] = ArrayBuffer.fill[Byte](schema.attributes.size)(0)
-              extract(prefix :+ Star,jet,fv)
+              extract(prefix ++ List(Star),jet,fv)
               fvs.get(currentSchema) match {
                 case Some(s) =>
                   s.get(fv) match {

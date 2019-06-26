@@ -200,6 +200,7 @@ object OurBiMax {
     (schemaName,entities)
   }
 
+
   /** Creates a graph representation of our entities, only connects entities that are possible to connect.
     *
     * @param root JERoot that contains schema and attribute information to decode feature vectors

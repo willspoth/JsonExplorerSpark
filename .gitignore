@@ -5,3 +5,8 @@ libs/
 data/
 JsonExplorer.jar
 Dot*/
+*.pdf
+*.dot
+*.log
+*.png
+log.json
