@@ -18,7 +18,11 @@ libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-sql" % "2.3.2",
   "org.apache.spark" %% "spark-mllib" % "2.3.2" % "runtime",
 
-  "org.jgrapht" % "jgrapht-core" % "1.3.0"
+  "org.jgrapht" % "jgrapht-core" % "1.3.0",
+
+//  "org.apache.logging.log4j" % "log4j-core" % "2.12.1",
+//  "org.apache.logging.log4j" % "log4j-api" % "2.12.1",
+//  "org.apache.logging.log4j" %% "log4j-api-scala" % "11.0"
 
   //"org.gephi" % "gephi-toolkit" % "0.9.2"
 )
