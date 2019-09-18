@@ -29,6 +29,24 @@ sealed trait JsonExplorerType {
     case JE_Obj_Array(xs) => JE_Obj_Array
     case JE_Tuple => JE_Tuple
   }
+
+  def isBasic(): Boolean = this match {
+    case JE_String => true
+    case JE_Numeric => true
+    case JE_Boolean => true
+    case JE_Null => true
+    case JE_Object => false
+    case _:JE_Object => false
+    case JE_Array => false
+    case _:JE_Array => false
+    case JE_Empty_Object => false
+    case JE_Empty_Array => false
+    case JE_Var_Object => false
+    case JE_Var_Object(xs) => false
+    case JE_Obj_Array => false
+    case JE_Obj_Array(xs) => false
+    case JE_Tuple => false
+  }
 }
 
 case class FeatureVector(fv: Array[Byte]) {
@@ -46,7 +64,7 @@ case class node() extends scala.collection.mutable.HashMap[Any,Option[node]] {}
   */
 case class Attribute(
                       name: AttributeName,
-                      `type`: Either[JsonExplorerType,ListBuffer[JsonExplorerType]],
+                      `type`: Either[scala.collection.mutable.Set[JsonExplorerType],JsonExplorerType],
                       typeList: scala.collection.mutable.HashMap[JsonExplorerType,Int],
                       objectTypeEntropy: Option[Double],
                       objectMarginalKeySpaceEntropy: Option[Double],
@@ -56,21 +74,6 @@ case class Attribute(
                       properties: mutable.HashMap[AttributeName,Attribute],
                       items: mutable.ListBuffer[Attribute]
                     ) {
-
-//  override def clone(): Attribute = {
-//    new Attribute(
-//      name.clone(),
-//      `type`,
-//      typeList,
-//      objectTypeEntropy,
-//      objectKeySpaceEntropy,
-//      arrayTypeEntropy,
-//      arrayKeySpaceEntropy,
-//      properties,
-//      items
-//    )
-//  }
-
 }
 object Attribute {
   def apply(name: ListBuffer[Any],
@@ -91,24 +94,7 @@ object Attribute {
   }
 }
 
-
-/** Special root object. Primarily use is to hold all JsonExtractionSchemas and act as a JsonExtractionSchema for root attributes.
-  *
-  */
-case class JsonExtractionRoot() {
-  var AllAttributes: scala.collection.mutable.HashMap[AttributeName,Attribute] = scala.collection.mutable.HashMap[AttributeName,Attribute]()
-  var Tree: node = new node() // the main tree that expresses all objects and should not change
-  var Schemas: scala.collection.mutable.HashMap[AttributeName,JsonExtractionSchema] = scala.collection.mutable.HashMap[AttributeName,JsonExtractionSchema]()
-}
-
-case class JsonExtractionSchema() {
-  val attributes: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Attribute] = scala.collection.mutable.HashMap[AttributeName,Attribute]()
-  var attributeLookup: scala.collection.mutable.HashMap[scala.collection.mutable.ListBuffer[Any],Int] = null
-  // None is a leaf
-  var tree: node = null
-  var naiveType: JsonExplorerType = null
-  var parent: scala.collection.mutable.ListBuffer[Any] = null
-}
+class AttributeTree(var name: Any, var children: mutable.HashMap[Any,AttributeTree], var attribute: Attribute)
 
 
 case object JE_String extends JsonExplorerType
@@ -442,7 +428,7 @@ object Types {
     return e
   }
 
-  def getType(m:scala.collection.mutable.Map[JsonExplorerType,Int]): Either[JsonExplorerType,ListBuffer[JsonExplorerType]] = {
+  def getType(m:scala.collection.mutable.Map[JsonExplorerType,Int]): Either[scala.collection.mutable.Set[JsonExplorerType],JsonExplorerType] = {
 
     val typeSet: mutable.Set[JsonExplorerType] = m.map{case(k,v) => {k.getType()}}.toSet.to[mutable.Set]
 
@@ -452,9 +438,9 @@ object Types {
       typeSet.remove(JE_Empty_Object)
 
     if (typeSet.size < 2)
-      return Left(typeSet.head)
+      return Right(typeSet.head)
     else
-      return Right(typeSet.toList.to[ListBuffer])
+      return Left(typeSet)
   }
 
   // using an interval metric to determine a kse breakpoint
