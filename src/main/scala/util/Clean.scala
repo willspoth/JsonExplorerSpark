@@ -16,6 +16,30 @@ object Clean {
     ???
   }
 
+  def githubAll(dirPath: String, outputFile: String): Unit = {
+    val d = new File(dirPath)
+    if (d.exists && d.isDirectory) {
+      val files = d.listFiles
+        .filter(_.isFile)
+        .filter(_.getName().takeRight(5).equals(".json"))
+        .toList
+
+      val file = new File(outputFile)
+      val bw = new BufferedWriter(new FileWriter(file))
+
+      files.foreach(f => {
+        bw.write(scala.io.Source.fromFile(f).mkString+'\n')
+        println("Done with: " + f.getName())
+      })
+      bw.close()
+    } else if (d.exists && !d.isDirectory) {
+      throw new Exception(dirPath + " is a file not a directory!")
+    } else {
+      throw new Exception(dirPath + " does not exist!")
+    }
+
+  }
+
 
   def clean(inputName: String, rowLimit: Int = 0): Unit = {
     val in = new File(inputName)

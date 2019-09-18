@@ -1,10 +1,10 @@
 package Explorer
 
-import com.fasterxml.jackson.core.{JsonFactory, JsonParser, JsonToken}
+import com.fasterxml.jackson.core.{JsonFactory, JsonParser}
 import com.fasterxml.jackson.core.JsonToken._
 
 
-object JacksonSerializer {
+object JacksonShredder {
 
   // custom parser, converts to our type annotation and strips values for compact form
   private def getJEObj(parser: JsonParser): JsonExplorerType = {
@@ -50,7 +50,7 @@ object JacksonSerializer {
     *  @return set of JsonExplorerTypes, each JET can be recursively shredded to select out attribute names and attribute types
     *
     */
-  def serialize(rows: Iterator[String]): Iterator[JsonExplorerType] = {
+  def shred(rows: Iterator[String]): Iterator[JsonExplorerType] = {
 
     // local collector, collects attributeName and type and it's count.
     val mapped_rows: scala.collection.mutable.ListBuffer[JsonExplorerType] = new scala.collection.mutable.ListBuffer[JsonExplorerType]()

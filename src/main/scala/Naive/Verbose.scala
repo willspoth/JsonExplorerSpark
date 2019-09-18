@@ -1,7 +1,7 @@
 package Naive
 
 import BiMax.OurBiMax
-import Explorer.JacksonSerializer
+import Explorer.JacksonShredder
 import Explorer.Types.AttributeName
 import JsonExplorer.SparkMain.LogOutput
 import org.apache.spark.rdd.RDD
@@ -14,7 +14,7 @@ import scala.collection.mutable.ListBuffer
   */
 object Verbose {
   def test(train: RDD[String], validation: RDD[String], log: mutable.ListBuffer[LogOutput],generateDot: Boolean): Unit = {
-    val verboseRows: ListBuffer[(mutable.HashSet[AttributeName], mutable.HashSet[AttributeName])] = train.mapPartitions(JacksonSerializer.serialize(_)).map(BiMax.OurBiMax.splitForValidation(_)).aggregate(scala.collection.mutable.HashSet[scala.collection.mutable.HashSet[AttributeName]]())(mergeValue,mergeCombiners)
+    val verboseRows: ListBuffer[(mutable.HashSet[AttributeName], mutable.HashSet[AttributeName])] = train.mapPartitions(JacksonShredder.shred(_)).map(BiMax.OurBiMax.splitForValidation(_)).aggregate(scala.collection.mutable.HashSet[scala.collection.mutable.HashSet[AttributeName]]())(mergeValue,mergeCombiners)
       .map(x => Tuple2(x,scala.collection.mutable.HashSet[AttributeName]())).toList.to[ListBuffer]
 
     if(generateDot)
@@ -24,7 +24,7 @@ object Verbose {
     log += LogOutput("VerboseGrouping",verboseRows.size.toString(),"Number of Verbose Groups: ")
     // calculate Validation
     if(validation.count() > 0) {
-      val vali = validation.mapPartitions(x => JacksonSerializer.serialize(x))
+      val vali = validation.mapPartitions(x => JacksonShredder.shred(x))
         .map(x => OurBiMax.splitForValidation(x))
         .map(x => BiMax.OurBiMax.calculateValidation(x, verboseRows))
         .reduce(_ + _)

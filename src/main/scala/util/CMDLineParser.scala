@@ -1,6 +1,7 @@
 package util
 
 import org.apache.spark.SparkConf
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
 import scala.collection.mutable
@@ -9,10 +10,9 @@ import scala.io.Source
 object CMDLineParser {
 
   case class config(fileName: String,
+                    train: RDD[String],
                     spark: SparkSession,
                     memory: Option[Boolean],
-                    trainPercentage: Double,
-                    validationSize: Int,
                     k: Int,
                     name: String,
                     argMap: mutable.HashMap[String, String],
@@ -37,25 +37,6 @@ object CMDLineParser {
       case _ | None => None
     }
 
-    val trainPercent: Double = argMap.get("train") match {
-      case Some(s) =>
-        try {
-          s.toDouble
-        } catch {
-          case e: Exception => throw new Exception("Make sure test is a double in the form -test 90.0")
-        }
-      case _ | None => 100.0
-    }
-
-    val validationSize: Int = argMap.get("val") match {
-      case Some(s) =>
-        try {
-          s.toInt
-        } catch {
-          case e: Exception => throw new Exception("Make sure val is an integer in the form -val 1000")
-        }
-      case _ | None => 0
-    }
 
     val k: Int = argMap.get("k") match {
       case Some(s) =>
@@ -76,7 +57,7 @@ object CMDLineParser {
     // spark config
     val spark = createSparkSession(argMap.get("config"))
 
-    return config(filename, spark, memory, trainPercent, validationSize, k, spark.conf.get("name").toString, argMap)
+    return config(filename, spark.sparkContext.textFile(filename), spark, memory, k, spark.conf.get("name").toString, argMap)
   }
 
 

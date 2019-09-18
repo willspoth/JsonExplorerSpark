@@ -3,7 +3,7 @@ package Explorer
 import com.google.gson.Gson
 import scala.collection.JavaConverters._
 
-object Serializer {
+object GSONShredder {
 
   /** Preforms the initial serialization step
     * This dataframe is then cached and can be used during clustering for correlation
@@ -22,7 +22,6 @@ object Serializer {
     val ArrayType = new java.util.ArrayList[Object]().getClass
 
 
-    val ThrowUnknownTypeException = true
     val gson = new Gson()
     // local collector, collects attributeName and type and it's count.
     val mapped_rows: scala.collection.mutable.ListBuffer[JsonExplorerType] = new scala.collection.mutable.ListBuffer[JsonExplorerType]()
@@ -59,10 +58,7 @@ object Serializer {
               local_objs.put(name,extractTypesO(gson.fromJson(gson.toJson(obj), MapType)))
             }
           case _ =>
-            if(ThrowUnknownTypeException)
-              throw new UnknownTypeException("Unknown Type Found in Extractor MapType: " + attributeClass.toString())
-            else
-              local_objs.put(name,JE_Unknown)
+            throw new UnknownTypeException("Unknown Type Found in Extractor MapType: " + attributeClass.toString())
         } // end match
       }}
 
@@ -102,10 +98,7 @@ object Serializer {
               local_objs.append(extractTypesO(gson.fromJson(gson.toJson(obj), MapType)))
             }
           case _ =>
-            if(ThrowUnknownTypeException)
-              throw new UnknownTypeException("Unknown Type Found in Extractor MapType: " + attributeClass.toString())
-            else
-              local_objs.append(JE_Unknown)
+            throw new UnknownTypeException("Unknown Type Found in Extractor MapType: " + attributeClass.toString())
         } // end match
       }}
 

@@ -2,7 +2,7 @@ package Naive
 
 
 import BiMax.OurBiMax
-import Explorer.{JacksonSerializer, Types}
+import Explorer.{JacksonShredder, Types}
 import Explorer.Types.AttributeName
 import JsonExplorer.SparkMain.LogOutput
 import org.apache.spark.rdd.RDD
@@ -12,7 +12,7 @@ import scala.collection.mutable.ListBuffer
 
 object KMeans {
   def test(train: RDD[String], validation: RDD[String], log: mutable.ListBuffer[LogOutput], bimax: ListBuffer[(mutable.HashSet[Types.AttributeName], mutable.HashSet[Types.AttributeName])],generateDot: Boolean, k: Int = 3, includeMultiplicities:Boolean = false): (Array[Array[Double]],Array[Array[Double]],Array[Array[Double]]) = {
-    var verboseRows: ListBuffer[(mutable.HashSet[AttributeName], mutable.HashSet[AttributeName],Int)] = train.mapPartitions(JacksonSerializer.serialize(_)).map(BiMax.OurBiMax.splitForValidation(_)).aggregate(scala.collection.mutable.HashMap[scala.collection.mutable.HashSet[AttributeName],Int]())(mergeValue,mergeCombiners)
+    var verboseRows: ListBuffer[(mutable.HashSet[AttributeName], mutable.HashSet[AttributeName],Int)] = train.mapPartitions(JacksonShredder.shred(_)).map(BiMax.OurBiMax.splitForValidation(_)).aggregate(scala.collection.mutable.HashMap[scala.collection.mutable.HashSet[AttributeName],Int]())(mergeValue,mergeCombiners)
       .map(x => Tuple3(x._1,scala.collection.mutable.HashSet[AttributeName](),x._2)).toList.to[ListBuffer]
 
     if(!includeMultiplicities)
@@ -105,7 +105,7 @@ object KMeans {
     log += LogOutput("KMeansGrouping",k.toString(),"Number of KMeans Groups: ")
     // calculate Validation
     if(validation.count() > 0) {
-      val vali = validation.mapPartitions(x => JacksonSerializer.serialize(x))
+      val vali = validation.mapPartitions(x => JacksonShredder.shred(x))
         .map(x => OurBiMax.splitForValidation(x))
         .map(x => BiMax.OurBiMax.calculateValidation(x, clusteredValues))
         .reduce(_ + _)

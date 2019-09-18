@@ -4,7 +4,7 @@ import java.io.PrintWriter
 
 import BiMax.OurBiMax
 import Explorer.Types.{AttributeName, SchemaName}
-import Explorer.{JacksonSerializer, Types}
+import Explorer.{JacksonShredder, Types}
 import JsonExplorer.SparkMain.LogOutput
 import org.apache.spark.rdd.RDD
 import org.jgrapht.Graph
@@ -17,7 +17,7 @@ import scala.collection.JavaConverters._
 object Flat {
 
   def test(train: RDD[String], validation: RDD[String], log: mutable.ListBuffer[LogOutput],generateDot: Boolean): Unit = {
-    val flatRows = train.mapPartitions(JacksonSerializer.serialize(_)).map(BiMax.OurBiMax.splitForValidation(_))
+    val flatRows = train.mapPartitions(JacksonShredder.shred(_)).map(BiMax.OurBiMax.splitForValidation(_))
     val flatTotalSchema: mutable.HashSet[Types.AttributeName] = flatRows.reduce((l,r) => l.union(r))
     val flatMandatorySchema = flatRows.reduce((l,r) => l.intersect(r))
     val flatOptionalSchema = flatTotalSchema -- flatMandatorySchema
@@ -29,7 +29,7 @@ object Flat {
     log += LogOutput("FlatGrouping",1.toString(),"Number of Flat Groups: ")
     // calculate Validation
     if(validation.count() > 0) {
-      val vali = validation.mapPartitions(x => JacksonSerializer.serialize(x))
+      val vali = validation.mapPartitions(x => JacksonShredder.shred(x))
         .map(x => OurBiMax.splitForValidation(x))
         .map(x => BiMax.OurBiMax.calculateValidation(x, ListBuffer(Tuple2(flatMandatorySchema, flatOptionalSchema))))
         .reduce(_ + _)
