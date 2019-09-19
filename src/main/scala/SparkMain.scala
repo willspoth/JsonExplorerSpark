@@ -9,9 +9,9 @@ import Explorer._
 import Optimizer.RewriteAttributes
 import org.apache.spark.storage.StorageLevel
 import util.CMDLineParser
+import org.apache.spark.util.SizeEstimator
 
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 
 
 object SparkMain {
@@ -33,6 +33,7 @@ object SparkMain {
       This can then be parsed in the feature vector creation phase without having to re-read the input file.
      */
     val shreddedRecords = config.train.mapPartitions(x=>JacksonShredder.shred(x))
+
 
     // for storage comparison
     config.memory match {
@@ -65,13 +66,25 @@ object SparkMain {
 
     val attributeTree: AttributeTree = RewriteAttributes.attributeListToAttributeTree(extractedAttributes)
 
+    // set objectKeySpaceThreshold to 0.0 to disable var_objects
     RewriteAttributes.rewriteSemanticTypes(attributeTree,1.0,0.0,1.0)
 
+    val attributeMap = RewriteAttributes.attributeTreeToAttributeList(attributeTree)
+
+    // TODO check type entropy, might be a bit screwy since it was negative
+    // get schemas to break on
+    val schemas: Seq[AttributeName] = RewriteAttributes.getSchemas(attributeTree)
+      .map(x => x.map(y => if(y.isInstanceOf[Int]) Star else y)) // remove possibility of weird array stuff
+      .toSeq
+      .sortBy(_.size)(Ordering[Int].reverse)
 
     val optimizationTime = System.currentTimeMillis()
     val optimizationRunTime = optimizationTime - extractionTime
 
     // TODO feature vectorization
+    val featureVectors: Map[AttributeName,mutable.HashMap[Map[AttributeName,mutable.Set[JsonExplorerType]],Int]] = shreddedRecords.flatMap(FeatureVectors.create(schemas,_))
+      .combineByKey(FeatureVectors.createCombiner,FeatureVectors.mergeValue,FeatureVectors.mergeCombiners).collect().toMap
+
 
     // TODO BiMax algorithm
 
@@ -100,7 +113,8 @@ object SparkMain {
     log += LogOutput("FVCreationTime",FVRunTime.toString,"FV Creation Took: "," ms")
     log += LogOutput("TotalTime",(endTime - startTime).toString,"Total execution time: ", " ms")
 
-
+    println(SizeEstimator.estimate(featureVectors.filter(x=> x._1.isEmpty || !RewriteAttributes.unwrap(attributeMap.get(x._1).get.`type`).contains(JE_Var_Object))))
+    println(SizeEstimator.estimate(featureVectors))
 
     val logFile = new FileWriter("log.json",true)
     logFile.write("{" + log.map(_.toJson).mkString(",") + "}\n")

@@ -175,6 +175,7 @@ object ParsingPrimitives {
 
 case object Star
 
+
 /** Common functions to preform on JET's and Attributes
   *
   */
@@ -453,8 +454,46 @@ object Types {
     }}._2
   }
 
+  def flattenJET(attribute: JsonExplorerType
+                ): mutable.HashMap[AttributeName,mutable.Set[JsonExplorerType]] =
+  {
+    val attributeMap: mutable.HashMap[AttributeName,mutable.Set[JsonExplorerType]] = mutable.HashMap[AttributeName,mutable.Set[JsonExplorerType]]()
+
+    def add(name: AttributeName, jet: JsonExplorerType): Unit =
+    {
+      attributeMap.get(name) match {
+        case Some(a) => a.add(jet)
+        case None => attributeMap.put(name,mutable.Set(jet))
+      }
+    }
+
+    def flatten(name: AttributeName, jet: JsonExplorerType): Unit =
+    {
+      jet match {
+        case JE_String | JE_Numeric | JE_Boolean | JE_Null | JE_Empty_Array | JE_Empty_Object =>
+          add(name,jet.getType())
+        case JE_Object(xs) =>
+          add(name,jet.getType())
+          xs.foreach{case(childName,childJET) => flatten(name++ListBuffer(childName),childJET)}
+        case JE_Array(xs) =>
+          add(name,jet.getType())
+          xs.foreach( childJET => flatten(name++ListBuffer(Star),childJET))
+      }
+    }
+
+    flatten(ListBuffer[Any](),attribute)
+    return attributeMap
+  }
+
+  def isStrictSubSet(base: AttributeName, question: AttributeName): Boolean = {
+    if(question.isEmpty) // root case
+      return true
+    if(question.size >= base.size)
+      return false
+    base.zipAll(question,null,null).map{case(b,q) => (q == null || b.equals(q))}.reduce(_&&_)
+  }
+
   /** ListBuffer[Any] to store attribute names, used to avoid potential escaping and danger characters. Integers mean array value, string is object and read left to right similar to dot notation
     */
   type AttributeName = scala.collection.mutable.ListBuffer[Any]
-  type SchemaName = scala.collection.mutable.ListBuffer[Any]
 }

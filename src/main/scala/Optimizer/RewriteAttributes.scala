@@ -4,6 +4,7 @@ import Explorer.{Attribute, AttributeTree, JE_Array, JE_Empty_Array, JE_Empty_Ob
 import Explorer.Types.AttributeName
 
 import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 
 
 object RewriteAttributes {
@@ -46,7 +47,7 @@ object RewriteAttributes {
     )
   }
 
-  private def unwrap(t: Either[mutable.Set[JsonExplorerType],JsonExplorerType]): mutable.Set[JsonExplorerType] = {
+  def unwrap(t: Either[mutable.Set[JsonExplorerType],JsonExplorerType]): mutable.Set[JsonExplorerType] = {
     t match {
       case Right(b) => mutable.Set(b)
       case Left(s) => s
@@ -154,6 +155,36 @@ object RewriteAttributes {
     })
 
     attributeTree
+  }
+
+  def attributeTreeToAttributeList(attributeTree: AttributeTree): mutable.HashMap[AttributeName,Attribute] = {
+    val attributeMap = mutable.HashMap[AttributeName,Attribute]()
+    def explode(attributeTree: AttributeTree): Unit = {
+      if(attributeTree.attribute != null) {
+        attributeMap.put(attributeTree.attribute.name, attributeTree.attribute)
+      }
+      attributeTree.children.foreach(x => explode(x._2))
+    }
+    explode(attributeTree)
+    attributeMap
+  }
+
+
+  def getSchemas(attributeTree: AttributeTree): mutable.Set[AttributeName] = {
+    val schemas: mutable.Set[AttributeName] = mutable.Set[AttributeName]()
+    getSchemas(attributeTree,schemas)
+    return schemas
+  }
+
+  // returns a set of names that are variable_objects and arrays_of_objects
+  private def getSchemas(attributeTree: AttributeTree, schemas: mutable.Set[AttributeName]): Unit = {
+    if(attributeTree.name.equals("$")) // is root
+      schemas.add(ListBuffer[Any]())
+    else if(unwrap(attributeTree.attribute.`type`).map(_.getType()).contains(JE_Var_Object))
+      schemas.add(attributeTree.attribute.name)
+    else if(unwrap(attributeTree.attribute.`type`).map(_.getType()).contains(JE_Obj_Array))
+      schemas.add(attributeTree.attribute.name)
+    attributeTree.children.foreach(x => getSchemas(x._2, schemas))
   }
 
 }
