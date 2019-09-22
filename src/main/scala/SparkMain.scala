@@ -59,7 +59,6 @@ object SparkMain {
         (n,Attribute(n,t))
       }}.collect()
 
-    println("" + extractedAttributes.filter(_._2.`type`.isLeft).isEmpty.toString)
 
     val extractionTime = System.currentTimeMillis()
     val extractionRunTime = extractionTime - startTime
@@ -68,8 +67,6 @@ object SparkMain {
 
     // set objectKeySpaceThreshold to 0.0 to disable var_objects
     RewriteAttributes.rewriteSemanticTypes(attributeTree,1.0,0.0,1.0)
-
-    val attributeMap = RewriteAttributes.attributeTreeToAttributeList(attributeTree)
 
     // TODO check type entropy, might be a bit screwy since it was negative
     // get schemas to break on
@@ -113,8 +110,10 @@ object SparkMain {
     log += LogOutput("FVCreationTime",FVRunTime.toString,"FV Creation Took: "," ms")
     log += LogOutput("TotalTime",(endTime - startTime).toString,"Total execution time: ", " ms")
 
+    val attributeMap = RewriteAttributes.attributeTreeToAttributeList(attributeTree)
     println(SizeEstimator.estimate(featureVectors.filter(x=> x._1.isEmpty || !RewriteAttributes.unwrap(attributeMap.get(x._1).get.`type`).contains(JE_Var_Object))))
     println(SizeEstimator.estimate(featureVectors))
+
 
     val logFile = new FileWriter("log.json",true)
     logFile.write("{" + log.map(_.toJson).mkString(",") + "}\n")
@@ -127,6 +126,5 @@ object SparkMain {
     override def toString: String = s"""${printPrefix}${value}${printSuffix}"""
     def toJson: String = s""""${label}":"${value}""""
   }
-
 
 }

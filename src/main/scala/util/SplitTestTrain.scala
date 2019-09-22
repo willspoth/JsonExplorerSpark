@@ -31,28 +31,30 @@ object SplitTestTrain {
     println(s"""Done splitting file: ${fileName} into ${trainFileName} of size ${train.count()} and ${validationFileName} of size ${validation.count()}""")
   }
 
+  private def asRDD(spark: SparkSession, inputFileName:String, outputFileName: String): Unit = {
+    val data: RDD[String] = spark.sparkContext.textFile(inputFileName).filter(x => (x.size > 0 && x.charAt(0).equals('{')))
+    data.saveAsTextFile(outputFileName)
+  }
+
   def main(args: Array[String]): Unit = {
 
-    val fileName: String = args(0)
-    val outputTrain: Boolean = args(2).equals("true")
-    val validationSize: Int = args(3).toInt
-    val outputValidation: Boolean = args(4).equals("true")
-    val config: Option[String] = if(args.size == 6) Some(args(5)) else None
-
-    val spark = createSparkSession(config)
-    // 3,321,936
-
-//    println(
-//      spark.sparkContext.textFile(fileName)
-//        .filter(_.size > 0)
-//        .filter(_.head == '{')
-//        .count()
-//    )
-//    ???
-    List(10.0,20.0,30.0,40.0,50.0,70.0,90.0).foreach(trainPercent => split(spark,fileName,trainPercent,outputTrain,validationSize,outputValidation))
+//    val fileName: String = args(0)
+//    val outputTrain: Boolean = args(2).equals("true")
+//    val validationSize: Int = args(3).toInt
+//    val outputValidation: Boolean = args(4).equals("true")
+//    val config: Option[String] = if(args.size == 6) Some(args(5)) else None
+//
+//    val spark = createSparkSession(config)
+//
+//    List(10.0,20.0,30.0,40.0,50.0,70.0,90.0).foreach(trainPercent => split(spark,fileName,trainPercent,outputTrain,validationSize,outputValidation))
 
     //Clean.githubAll("/home/will/Data/jsonData/githubSigmod2020/github/","/home/will/Data/jsonData/githubSigmod2020.json")
 
+    val inputFileName: String = args(0)
+    val outputFileName: String = args(1)
+    val spark = createSparkSession(None)
+
+    asRDD(spark,inputFileName,outputFileName)
   }
 
 }
