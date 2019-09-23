@@ -28,7 +28,7 @@ object CMDLineParser {
     val argMap = scala.collection.mutable.HashMap[String,String]()
     val filename: String = args(0)
     if(args.tail.size > 1) {
-      val argPairs = args.tail.zip(args.tail.tail).zipWithIndex.filter(_._2%2==0).map(_._1).foreach(x=>argMap.put(x._1.tail,x._2))
+      val argPairs = args.tail.zip(args.tail.tail).zipWithIndex.filter(_._2%2==0).map(_._1).foreach(x=>argMap.put(x._1,x._2))
     }
 
     val memory: Option[Boolean] = argMap.get("memory") match {

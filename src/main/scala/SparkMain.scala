@@ -83,6 +83,7 @@ object SparkMain {
       .combineByKey(FeatureVectors.createCombiner,FeatureVectors.mergeValue,FeatureVectors.mergeCombiners).collect().toMap
 
     // TODO BiMax algorithm
+    // TODO merge types from subset
 
     // TODO output schemas as json-schema
 
