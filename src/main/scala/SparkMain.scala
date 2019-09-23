@@ -78,12 +78,13 @@ object SparkMain {
     val optimizationTime = System.currentTimeMillis()
     val optimizationRunTime = optimizationTime - extractionTime
 
-    // TODO feature vectorization
+    // create feature vectors, currently should work if schemas generated from subset of training data
     val featureVectors: Map[AttributeName,mutable.HashMap[Map[AttributeName,mutable.Set[JsonExplorerType]],Int]] = shreddedRecords.flatMap(FeatureVectors.create(schemas,_))
       .combineByKey(FeatureVectors.createCombiner,FeatureVectors.mergeValue,FeatureVectors.mergeCombiners).collect().toMap
 
-
     // TODO BiMax algorithm
+
+    // TODO output schemas as json-schema
 
     //println("Optimization Took: " + optimizationRunTime.toString + " ms")
     // create feature vectors from this list

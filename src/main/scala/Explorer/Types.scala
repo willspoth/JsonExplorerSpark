@@ -496,4 +496,9 @@ object Types {
   /** ListBuffer[Any] to store attribute names, used to avoid potential escaping and danger characters. Integers mean array value, string is object and read left to right similar to dot notation
     */
   type AttributeName = scala.collection.mutable.ListBuffer[Any]
+
+
+  case class BiMaxNode(schema: Set[AttributeName], types: Map[AttributeName,mutable.Set[JsonExplorerType]], multiplicity: Int, subsets: mutable.ListBuffer[(Map[AttributeName,mutable.Set[JsonExplorerType]],Int)])
+  type BiMaxStruct = mutable.Seq[BiMaxNode]
+  type DisjointNodes = mutable.Seq[BiMaxStruct]
 }
