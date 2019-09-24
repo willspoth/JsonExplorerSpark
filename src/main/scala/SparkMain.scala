@@ -3,6 +3,8 @@ package JsonExplorer
 import java.io._
 import java.util.Calendar
 
+import org.apache.spark.rdd.RDD
+
 //import BiMax.OurBiMax
 import Explorer.Types.AttributeName
 import Explorer._
@@ -18,15 +20,6 @@ object SparkMain {
 
 
   def main(args: Array[String]): Unit = {
-
-    println(
-      mutable.ListBuffer("1","2","3","four","5")
-        .zipWithIndex.toSet.subsets().toList.filter(!_.isEmpty).map(_.toList.sortBy(_._2)).sortBy(x => (x.size,x.head._2)).map(_.map(_._1))
-    )
-
-    println(Set("test","hello").subsetOf(Set("test")))
-
-    ???
 
     val log: mutable.ListBuffer[LogOutput] = mutable.ListBuffer[LogOutput]()
     log += LogOutput("Date",Calendar.getInstance().getTime().toString,"Date: ")
@@ -87,11 +80,20 @@ object SparkMain {
     val optimizationRunTime = optimizationTime - extractionTime
 
     // create feature vectors, currently should work if schemas generated from subset of training data
-    val featureVectors: Map[AttributeName,mutable.HashMap[Map[AttributeName,mutable.Set[JsonExplorerType]],Int]] = shreddedRecords.flatMap(FeatureVectors.create(schemas,_))
-      .combineByKey(FeatureVectors.createCombiner,FeatureVectors.mergeValue,FeatureVectors.mergeCombiners).collect().toMap
+    val featureVectors: RDD[(AttributeName,mutable.HashMap[Map[AttributeName,mutable.Set[JsonExplorerType]],Int])] =
+      shreddedRecords.flatMap(FeatureVectors.create(schemas,_))
+        .combineByKey(FeatureVectors.createCombiner,FeatureVectors.mergeValue,FeatureVectors.mergeCombiners)
 
-    // TODO BiMax algorithm
-    // TODO merge types from subset
+    val attributeMap = RewriteAttributes.attributeTreeToAttributeList(attributeTree)
+    // BiMax algorithm  : RDD[(AttributeName,Types.DisjointNodes)]
+    val rawSchemas = featureVectors.map(x => {
+        if(x._1.isEmpty || !RewriteAttributes.unwrap(attributeMap.get(x._1).get.`type`).contains(JE_Var_Object))
+          (x._1,BiMax.OurBiMax2.bin(x._2))
+        else {
+          (x._1,null) // TODO place holder, don't do bimax on var_objects
+        }
+    })
+      .map(x => if (x._2 != null) (x._1,BiMax.OurBiMax2.rewrite(x._2)) else x).collect().toMap
 
     // TODO output schemas as json-schema
 
@@ -120,7 +122,6 @@ object SparkMain {
     log += LogOutput("FVCreationTime",FVRunTime.toString,"FV Creation Took: "," ms")
     log += LogOutput("TotalTime",(endTime - startTime).toString,"Total execution time: ", " ms")
 
-    val attributeMap = RewriteAttributes.attributeTreeToAttributeList(attributeTree)
     println(SizeEstimator.estimate(featureVectors.filter(x=> x._1.isEmpty || !RewriteAttributes.unwrap(attributeMap.get(x._1).get.`type`).contains(JE_Var_Object))))
     println(SizeEstimator.estimate(featureVectors))
 

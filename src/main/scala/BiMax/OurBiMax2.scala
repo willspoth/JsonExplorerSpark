@@ -8,21 +8,20 @@ import scala.collection.mutable.ListBuffer
 
 object OurBiMax2 {
 
-  sealed trait setRelation
-  case object subset extends setRelation
-  case object combined extends setRelation
-  case object disjoint extends setRelation
+  object setRelation extends Enumeration {
+    val subset,combined,disjoint = Value
+  }
 
   private def setRelationship(target: Map[AttributeName,mutable.Set[JsonExplorerType]],
                               test: Map[AttributeName,mutable.Set[JsonExplorerType]]
-                             ): setRelation = {
-    val t = test.map{case(attribute, types) => target.contains(attribute)}
+                             ): setRelation.Value = {
+    val t = test.filter(!_._1.isEmpty).map{case(attribute, types) => target.contains(attribute)}
     if(t.reduce(_&&_)){
-      return subset
+      return setRelation.subset
     } else {
       if(t.toList.contains(true))
-        return combined
-      else return disjoint
+        return setRelation.combined
+      else return setRelation.disjoint
     }
   }
 
@@ -46,9 +45,9 @@ object OurBiMax2 {
       val target = remainingNodes.head
       remainingNodes.tail.foreach(test => {
         setRelationship(target._1,test._1) match {
-          case subset => subsetSchemas.append(test)
-          case combined => combinedSchemas.append((test._1,test._2,true))
-          case disjoint =>
+          case setRelation.subset => subsetSchemas.append(test)
+          case setRelation.combined => combinedSchemas.append((test._1,test._2,true))
+          case setRelation.disjoint =>
             if(test._3) combinedSchemas.append(test)
             else disjointSchemas.append(test)
         }
@@ -67,22 +66,33 @@ object OurBiMax2 {
     disjointNodes
   }
 
-  private def isCovered(base: Set[AttributeName], test: Set[AttributeName]): Boolean = {
-    return test.subsetOf(base)
-  }
+  private def isCovered(head: Set[AttributeName], merged: Set[AttributeName]): Boolean = head.subsetOf(merged)
 
-  private def isSubset(test: Set[AttributeName], nodes: BiMaxStruct): Boolean = {
-    if(nodes.size < 2)
-      return false
-    else
-      nodes.forall(x => test.subsetOf(x.schema) && !test.equals(x.schema))
-  }
+  private def strictSubset(base: Set[AttributeName], toTest: Set[AttributeName]): Boolean = toTest.subsetOf(base) && !toTest.equals(base)
 
   private def removeSubsets(nodes: BiMaxStruct): BiMaxStruct = {
-    nodes.filter(x => isSubset(x.schema,nodes))
+    def updateIfSubset(target: BiMaxNode, toTest: BiMaxNode): Boolean = {
+      if(toTest.schema.subsetOf(target.schema)){
+        target.subsets.appendAll(toTest.subsets)
+        target.subsets.append((toTest.types,toTest.multiplicity))
+        return true
+      } else {
+        return false
+      }
+    }
+
+    var nodesToCheck = nodes.sortBy(_.schema.size)(Ordering[Int].reverse)
+    val returnNodes = ListBuffer[BiMaxNode]()
+    while(!nodesToCheck.isEmpty){
+      val target = nodesToCheck.head
+      nodesToCheck = nodesToCheck.tail.filter(x => !updateIfSubset(target,x)) // negate to remove from pool
+      returnNodes.append(target)
+    }
+
+    return returnNodes
   }
 
-  //
+
   private def rewriteNode(nodes: BiMaxStruct): (BiMaxStruct,Boolean) = {
     if(nodes.size > 2) { // check broadest case first to reduce computation
       val temp: Set[AttributeName] = nodes.tail.map(_.schema).reduce(_++_)
@@ -106,14 +116,24 @@ object OurBiMax2 {
   def rewrite(disjointNodes: DisjointNodes
              ): DisjointNodes = {
 
-     disjointNodes.map(mixedNodes => {
-       mixedNodes.reverse.zipWithIndex.foreach{case(test,idx) =>
-         var (retNodes,checksubset) = rewriteNode(mixedNodes.takeRight(idx+1))
-         if (checksubset)
-           retNodes = removeSubsets(retNodes)
-         else
+    def bottomUpRewrite(nodes: BiMaxStruct): (BiMaxStruct,Boolean) = { // boolean should rerun
+      nodes.zipWithIndex.foreach{case(test,idx) =>
+        val (retNodes,checksubset) = rewriteNode(nodes.takeRight(idx+1))
+        if (checksubset)
+          return (removeSubsets(retNodes),true)
+      }
+      return (nodes,false)
+    }
 
-       }
+     disjointNodes.map(mixedNodes => {
+       var rerun = false
+       var tempNodes = mixedNodes
+       do {
+         val res = bottomUpRewrite(tempNodes)
+         tempNodes = res._1
+         rerun = res._2
+       } while(rerun)
+       tempNodes
      })
   }
 
