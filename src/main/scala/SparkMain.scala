@@ -26,6 +26,8 @@ object SparkMain {
 
     val config = CMDLineParser.readArgs(args) // Creates the Spark session with its config values.
 
+    log += LogOutput("inputFile",config.fileName,"Input File: ")
+
     val startTime = System.currentTimeMillis() // Start timer
 
 
@@ -99,20 +101,6 @@ object SparkMain {
 
     //println("Optimization Took: " + optimizationRunTime.toString + " ms")
     // create feature vectors from this list
-
-//    var (orig,kmeans,bimax): (Array[Array[Double]],Array[Array[Double]],Array[Array[Double]]) = (null,null,null)
-//    var bimaxSchema: ListBuffer[(mutable.HashSet[Types.AttributeName], mutable.HashSet[Types.AttributeName])]  = null
-//
-//    val fvs = shreddedRecords.flatMap(FeatureVectorCreator.extractFVSs(root.Schemas,_))
-//      .combineByKey(FeatureVectorCreator.createCombiner,FeatureVectorCreator.mergeValue,FeatureVectorCreator.mergeCombiners)
-//      //.reduceByKey(FeatureVectorCreator.Combine(_,_)).map(x => FeatureVectorCreator.toDense(x._1,x._2))
-//
-//      val r = fvs.map(x => BiMax.OurBiMax.BiMax(x._1,x._2)).map(x => BiMax.OurBiMax.convertBiMaxNodes(x._1,x._2)).map(x => BiMax.OurBiMax.categorizeAttributes(x._1,x._2)).collect()
-//      val (g,l) = BiMax.OurBiMax.buildGraph(root,r)
-//      log += LogOutput("Precision",BiMax.OurBiMax.calculatePrecision(ListBuffer[Any](),g,l).toString(),"Precision: ")
-//      val schemaSet = OurBiMax.graphToSchemaSet(root,g,l)
-//      bimaxSchema = schemaSet.map { case (m, o) => Tuple2(mutable.HashSet[AttributeName](), m ++ o) }
-//      log += LogOutput("Grouping",schemaSet.size.toString(),"Number of Groups: ")
 
 
     val endTime = System.currentTimeMillis() // End Timer

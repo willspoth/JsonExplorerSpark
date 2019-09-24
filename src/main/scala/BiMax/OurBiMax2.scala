@@ -74,7 +74,8 @@ object OurBiMax2 {
     def updateIfSubset(target: BiMaxNode, toTest: BiMaxNode): Boolean = {
       if(toTest.schema.subsetOf(target.schema)){
         target.subsets.appendAll(toTest.subsets)
-        target.subsets.append((toTest.types,toTest.multiplicity))
+        if(toTest.multiplicity > 0) // filter already merged schemas
+          target.subsets.append((toTest.types,toTest.multiplicity))
         return true
       } else {
         return false
@@ -106,8 +107,7 @@ object OurBiMax2 {
           test.schema,
           testNodes.map(_.schema).reduce(_++_)
         )){
-          nodes(0) = new BiMaxNode(testNodes.map(_.schema).reduce(_++_), test.types,0,ListBuffer((test.types,test.multiplicity))++test.subsets)
-          return (nodes,true)
+          return (removeSubsets(ListBuffer(new BiMaxNode(testNodes.map(_.schema).reduce(_++_), Map[AttributeName,mutable.Set[JsonExplorerType]](),0,ListBuffer())) ++ nodes),true)
         }
       )
     return (nodes,false) // base case return
@@ -120,21 +120,21 @@ object OurBiMax2 {
       nodes.zipWithIndex.foreach{case(test,idx) =>
         val (retNodes,checksubset) = rewriteNode(nodes.takeRight(idx+1))
         if (checksubset)
-          return (removeSubsets(retNodes),true)
+          return (removeSubsets(nodes.take(nodes.size-(idx+1)) ++ retNodes),true)
       }
       return (nodes,false)
     }
 
-     disjointNodes.map(mixedNodes => {
-       var rerun = false
-       var tempNodes = mixedNodes
-       do {
-         val res = bottomUpRewrite(tempNodes)
-         tempNodes = res._1
-         rerun = res._2
-       } while(rerun)
-       tempNodes
-     })
+    disjointNodes.map(mixedNodes => {
+      var rerun = false
+      var tempNodes = mixedNodes
+      do {
+        val res = bottomUpRewrite(tempNodes)
+        tempNodes = res._1
+        rerun = res._2
+      } while(rerun)
+      tempNodes
+    }).map(removeSubsets(_)) // hit it again just to be sure
   }
 
 }
