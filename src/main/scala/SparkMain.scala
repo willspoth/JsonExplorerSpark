@@ -19,6 +19,14 @@ object SparkMain {
 
   def main(args: Array[String]): Unit = {
 
+    println(
+      mutable.ListBuffer("1","2","3","four","5")
+        .zipWithIndex.toSet.subsets().toList.filter(!_.isEmpty).map(_.toList.sortBy(_._2)).sortBy(x => (x.size,x.head._2)).map(_.map(_._1))
+    )
+
+    println(Set("test","hello").subsetOf(Set("test")))
+
+    ???
 
     val log: mutable.ListBuffer[LogOutput] = mutable.ListBuffer[LogOutput]()
     log += LogOutput("Date",Calendar.getInstance().getTime().toString,"Date: ")
