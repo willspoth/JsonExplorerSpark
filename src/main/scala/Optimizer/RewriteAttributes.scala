@@ -9,28 +9,18 @@ import scala.collection.mutable.ListBuffer
 
 object RewriteAttributes {
 
-  private def upgradeType(base: Either[scala.collection.mutable.Set[JsonExplorerType],JsonExplorerType],
+  private def upgradeType(base: scala.collection.mutable.Set[JsonExplorerType],
                           find: JsonExplorerType,
                           replace: JsonExplorerType
-                         ): Either[scala.collection.mutable.Set[JsonExplorerType],JsonExplorerType] =
+                         ): scala.collection.mutable.Set[JsonExplorerType] =
   {
-    base match {
-      case Right(jet) =>
-        if(jet.getType().equals(find.getType()))
-          return Right(replace.getType())
-        else throw new Exception("You probably shouldn't end up here, check this out future me")
-      case Left(jetSet) =>
-        if(jetSet.contains(find.getType())) {
-          jetSet.remove(find.getType())
-          jetSet.add(replace.getType())
-          return Left(jetSet)
-        }
-        else throw new Exception("You probably shouldn't end up here, check this out future me")
-    }
+    base.remove(find.getType())
+    base.add(replace.getType())
+    return base
   }
 
   private def updateAttributeType(attribute: Attribute,
-                                  newType: Either[scala.collection.mutable.Set[JsonExplorerType],JsonExplorerType]
+                                  newType: scala.collection.mutable.Set[JsonExplorerType]
                                  ): Attribute =
   {
     new Attribute(
@@ -47,17 +37,10 @@ object RewriteAttributes {
     )
   }
 
-  def unwrap(t: Either[mutable.Set[JsonExplorerType],JsonExplorerType]): mutable.Set[JsonExplorerType] = {
-    t match {
-      case Right(b) => mutable.Set(b)
-      case Left(s) => s
-    }
-  }
-
   private def getChildrenTypes(tree: AttributeTree
                               ): mutable.Set[JsonExplorerType] =
   {
-    unwrap(tree.attribute.`type`) ++ tree.children.flatMap(x => getChildrenTypes(x._2))
+    tree.attribute.`type` ++ tree.children.flatMap(x => getChildrenTypes(x._2))
   }
 
   private def checkObjectKSE(attributeTree: AttributeTree,
@@ -67,7 +50,7 @@ object RewriteAttributes {
     if(!attributeTree.attribute.objectMarginalKeySpaceEntropy.equals(None)) {
       if ((attributeTree.attribute.objectMarginalKeySpaceEntropy.get > keySpaceThreshold) != (attributeTree.attribute.objectJointKeySpaceEntropy.get > keySpaceThreshold))
         println("KSE difference between marginal and joint exists and effects choice for attribute " + Types.nameToString(attributeTree.attribute.name) + " marginal: " + attributeTree.attribute.objectMarginalKeySpaceEntropy.get.toString + " joint: " + attributeTree.attribute.objectJointKeySpaceEntropy.get.toString)
-      if ((attributeTree.attribute.objectMarginalKeySpaceEntropy.get >= keySpaceThreshold) && (getChildrenTypes(attributeTree).filterNot(_.equals(JE_Null)).filter(_.isBasic()).size <= 1)) {
+      if (((attributeTree.attribute.objectMarginalKeySpaceEntropy.get >= keySpaceThreshold) && (getChildrenTypes(attributeTree).filterNot(_.equals(JE_Null)).filter(_.isBasic()).size <= 1)) && keySpaceThreshold > 0.0) {
         return updateAttributeType(attributeTree.attribute, upgradeType(attributeTree.attribute.`type`, JE_Object, JE_Var_Object))
       }
     }
@@ -157,7 +140,7 @@ object RewriteAttributes {
     attributeTree
   }
 
-  def attributeTreeToAttributeList(attributeTree: AttributeTree): mutable.HashMap[AttributeName,Attribute] = {
+  def attributeTreeToAttributeMap(attributeTree: AttributeTree): mutable.HashMap[AttributeName,Attribute] = {
     val attributeMap = mutable.HashMap[AttributeName,Attribute]()
     def explode(attributeTree: AttributeTree): Unit = {
       if(attributeTree.attribute != null) {
@@ -170,6 +153,7 @@ object RewriteAttributes {
   }
 
 
+
   def getSchemas(attributeTree: AttributeTree): mutable.Set[AttributeName] = {
     val schemas: mutable.Set[AttributeName] = mutable.Set[AttributeName]()
     getSchemas(attributeTree,schemas)
@@ -180,11 +164,22 @@ object RewriteAttributes {
   private def getSchemas(attributeTree: AttributeTree, schemas: mutable.Set[AttributeName]): Unit = {
     if(attributeTree.name.equals("$")) // is root
       schemas.add(ListBuffer[Any]())
-    else if(unwrap(attributeTree.attribute.`type`).map(_.getType()).contains(JE_Var_Object))
+    else if(attributeTree.attribute.`type`.map(_.getType()).contains(JE_Var_Object))
       schemas.add(attributeTree.attribute.name)
-    else if(unwrap(attributeTree.attribute.`type`).map(_.getType()).contains(JE_Obj_Array))
+    else if(attributeTree.attribute.`type`.map(_.getType()).contains(JE_Obj_Array))
       schemas.add(attributeTree.attribute.name)
     attributeTree.children.foreach(x => getSchemas(x._2, schemas))
+  }
+
+  def pickFromTree(attributeName: AttributeName, attributeTree: AttributeTree, currentName: AttributeName = ListBuffer[Any]()): AttributeTree = {
+    if(attributeName.isEmpty)
+      return attributeTree
+    else { // need to navigate to right location because q.q
+      if (currentName.equals(attributeName))
+        return attributeTree
+      else
+        return pickFromTree(attributeName,attributeTree.children.get(attributeName(currentName.size)).get,currentName ++ List(attributeName(currentName.size)))
+    }
   }
 
 }

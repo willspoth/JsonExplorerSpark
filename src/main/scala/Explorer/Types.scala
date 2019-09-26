@@ -63,16 +63,18 @@ case class node() extends scala.collection.mutable.HashMap[Any,Option[node]] {}
   *
   */
 case class Attribute(
-                      name: AttributeName,
-                      `type`: Either[scala.collection.mutable.Set[JsonExplorerType],JsonExplorerType],
-                      typeList: scala.collection.mutable.HashMap[JsonExplorerType,Int],
-                      objectTypeEntropy: Option[Double],
-                      objectMarginalKeySpaceEntropy: Option[Double],
-                      objectJointKeySpaceEntropy: Option[Double],
-                      arrayTypeEntropy: Option[Double],
-                      arrayKeySpaceEntropy: Option[Double],
-                      properties: mutable.HashMap[AttributeName,Attribute],
-                      items: mutable.ListBuffer[Attribute]
+                      name: AttributeName = null,
+                      `type`: scala.collection.mutable.Set[JsonExplorerType] = null,
+                      typeList: scala.collection.mutable.HashMap[JsonExplorerType,Int] = null,
+                      objectTypeEntropy: Option[Double] = None,
+                      objectMarginalKeySpaceEntropy: Option[Double] = None,
+                      objectJointKeySpaceEntropy: Option[Double] = None,
+                      arrayTypeEntropy: Option[Double] = None,
+                      arrayKeySpaceEntropy: Option[Double] = None,
+                      properties: mutable.HashMap[AttributeName,Attribute] = null,
+                      items: mutable.ListBuffer[Attribute] = null,
+                      required: Boolean = false,
+                      multiplicity: Int = 0
                     ) {
 }
 object Attribute {
@@ -173,7 +175,9 @@ object ParsingPrimitives {
   val MapType = new java.util.HashMap[String,Object]().getClass
 }
 
-case object Star
+case object Star {
+  override def toString: String = "[*]"
+}
 
 
 /** Common functions to preform on JET's and Attributes
@@ -429,7 +433,7 @@ object Types {
     return e
   }
 
-  def getType(m:scala.collection.mutable.Map[JsonExplorerType,Int]): Either[scala.collection.mutable.Set[JsonExplorerType],JsonExplorerType] = {
+  def getType(m:scala.collection.mutable.Map[JsonExplorerType,Int]): scala.collection.mutable.Set[JsonExplorerType] = {
 
     val typeSet: mutable.Set[JsonExplorerType] = m.map{case(k,v) => {k.getType()}}.toSet.to[mutable.Set]
 
@@ -438,10 +442,7 @@ object Types {
     if(typeSet.contains(JE_Object) && typeSet.contains(JE_Empty_Object))
       typeSet.remove(JE_Empty_Object)
 
-    if (typeSet.size < 2)
-      return Right(typeSet.head)
-    else
-      return Left(typeSet)
+    return typeSet
   }
 
   // using an interval metric to determine a kse breakpoint

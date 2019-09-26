@@ -3,6 +3,7 @@ package JsonExplorer
 import java.io._
 import java.util.Calendar
 
+import Explorer.Types.BiMaxNode
 import org.apache.spark.rdd.RDD
 
 //import BiMax.OurBiMax
@@ -81,36 +82,45 @@ object SparkMain {
     val optimizationTime = System.currentTimeMillis()
     val optimizationRunTime = optimizationTime - extractionTime
 
+
     // create feature vectors, currently should work if schemas generated from subset of training data
     val featureVectors: RDD[(AttributeName,mutable.HashMap[Map[AttributeName,mutable.Set[JsonExplorerType]],Int])] =
       shreddedRecords.flatMap(FeatureVectors.create(schemas,_))
         .combineByKey(FeatureVectors.createCombiner,FeatureVectors.mergeValue,FeatureVectors.mergeCombiners)
 
-    val attributeMap = RewriteAttributes.attributeTreeToAttributeList(attributeTree)
-    // BiMax algorithm  : RDD[(AttributeName,Types.DisjointNodes)]
-    val rawSchemas = featureVectors.map(x => {
-        if(x._1.isEmpty || !RewriteAttributes.unwrap(attributeMap.get(x._1).get.`type`).contains(JE_Var_Object))
+    val attributeMap = RewriteAttributes.attributeTreeToAttributeMap(attributeTree)
+
+
+    // BiMax algorithm
+    val rawSchemas: Map[AttributeName,Types.DisjointNodes] = featureVectors.map(x => {
+        if(x._1.isEmpty || !attributeMap.get(x._1).get.`type`.contains(JE_Var_Object))
           (x._1,BiMax.OurBiMax2.bin(x._2))
         else {
-          (x._1,null) // TODO place holder, don't do bimax on var_objects
+          (x._1,
+            mutable.Seq(mutable.Seq(
+              BiMaxNode(Set[AttributeName](),Map[AttributeName,mutable.Set[JsonExplorerType]](),0,x._2.toList.to[mutable.ListBuffer])
+            ))
+          ) // don't do bimax on var_objects
         }
     })
       .map(x => if (x._2 != null) (x._1,BiMax.OurBiMax2.rewrite(x._2)) else x).collect().toMap
 
-    // TODO output schemas as json-schema
-
-    //println("Optimization Took: " + optimizationRunTime.toString + " ms")
-    // create feature vectors from this list
-
 
     val endTime = System.currentTimeMillis() // End Timer
     val FVRunTime = endTime - optimizationTime
+
+    // output schemas as json-schema
+    val JsonSchema: util.JsonSchema.JSS = util.NodeToJsonSchema.biMaxToJsonSchema(rawSchemas, attributeMap)
+    val JsonSchemaString = JsonSchema.toString
+
+    println(JsonSchemaString)
+
     log += LogOutput("ExtractionTime",extractionRunTime.toString,"Extraction Took: "," ms")
     log += LogOutput("OptimizationTime",optimizationRunTime.toString,"Optimization Took: "," ms")
     log += LogOutput("FVCreationTime",FVRunTime.toString,"FV Creation Took: "," ms")
     log += LogOutput("TotalTime",(endTime - startTime).toString,"Total execution time: ", " ms")
 
-    println(SizeEstimator.estimate(featureVectors.filter(x=> x._1.isEmpty || !RewriteAttributes.unwrap(attributeMap.get(x._1).get.`type`).contains(JE_Var_Object))))
+    println(SizeEstimator.estimate(featureVectors.filter(x=> x._1.isEmpty || attributeMap.get(x._1).get.`type`.contains(JE_Var_Object))))
     println(SizeEstimator.estimate(featureVectors))
 
 
