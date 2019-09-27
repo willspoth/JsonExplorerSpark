@@ -3,7 +3,7 @@ package util
 import Explorer.{Attribute, AttributeTree, JE_Array, JE_Empty_Array, JE_Empty_Object, JE_Object, JE_Var_Object, JsonExplorerType, Types}
 import Explorer.Types.{AttributeName, BiMaxNode, BiMaxStruct}
 import Optimizer.RewriteAttributes
-import util.JsonSchema.{JSA_anyOf, JSA_description, JSA_items, JSA_maxItems, JSA_maxProperties, JSA_properties, JSA_required, JSA_type, JSS, JsonSchemaStructure}
+import util.JsonSchema.{JSA_additionalProperties, JSA_anyOf, JSA_description, JSA_items, JSA_maxItems, JSA_maxProperties, JSA_properties, JSA_required, JSA_type, JSS, JsonSchemaStructure}
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -66,7 +66,7 @@ object NodeToJsonSchema {
             JSA_type(JsonExplorerTypeToJsonSchemaType.convert(t))
           )
 
-          if(t.getType().equals(JE_Object)){
+          if(t.getType().equals(JE_Object) || t.getType().equals(JE_Var_Object)){
             seq.append(JSA_properties(
               attributeTree.children.map(x => (x._1.toString,attributeToJSS(
                 x._2,
@@ -117,7 +117,10 @@ object NodeToJsonSchema {
           if (t.getType().equals(JE_Empty_Object)) seq.append(JSA_maxProperties(0.0))
           if (t.getType().equals(JE_Empty_Array)) seq.append(JSA_maxItems(0.0))
 
-          // TODO check for variable objects and arrays of objects
+          // check for variable objects
+          if (t.getType().equals(JE_Var_Object)) seq.append(JSA_additionalProperties(true))
+
+          // TODO arrays of objects
 
           // add JSA_required
           if(t.getType().equals(JE_Object)){

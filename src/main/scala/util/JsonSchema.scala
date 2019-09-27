@@ -75,6 +75,9 @@ object JsonSchema {
   case class JSA_maxProperties(value: Double) extends JsonSchemaStructure {
     override def toString: String = s""""maxItems":${value.toString}"""
   }
+  case class JSA_additionalProperties(value: Boolean) extends JsonSchemaStructure {
+    override def toString: String = s""""additionalProperties":${value.toString}"""
+  }
   //  case class JSA_definitions(value: Map[String,JSS]) extends JsonSchemaStructure {
   //    override def toString: String = s"\"definitions\":{${value.map{case(k,v) => "\""+k+"\":"+v.toString}.mkString(",")}}"
   //  }
@@ -92,7 +95,8 @@ object JsonSchema {
                   items: Option[ JSA_items ] = None,
                   anyOf: Option[ JSA_anyOf ] = None,
                   maxItems: Option[ JSA_maxItems ] = None,
-                  maxProperties: Option[ JSA_maxProperties ] = None
+                  maxProperties: Option[ JSA_maxProperties ] = None,
+                  additionalProperties: Option[ JSA_additionalProperties ] = None
                 )
   {
     override def toString: String = {
@@ -109,7 +113,8 @@ object JsonSchema {
           items,
           anyOf,
           maxItems,
-          maxProperties
+          maxProperties,
+          additionalProperties
         ).filterNot(_.equals(None)).map(_.get.toString).mkString(",") +
         "}"
     }
@@ -130,6 +135,7 @@ object JsonSchema {
       var anyOf: Option[ JSA_anyOf ] = None
       var maxItems: Option[ JSA_maxItems ] = None
       var maxProperties: Option[ JSA_maxProperties ] = None
+      var additionalProperties: Option[ JSA_additionalProperties ] = None
       vs.foreach( jss => {
         jss match {
           case v: JSA_schema => schema = Some(v)
@@ -144,6 +150,7 @@ object JsonSchema {
           case v: JSA_anyOf => anyOf = Some(v)
           case v: JSA_maxItems => maxItems = Some(v)
           case v: JSA_maxProperties => maxProperties = Some(v)
+          case v: JSA_additionalProperties => additionalProperties = Some(v)
         }
       })
       return new JSS(
@@ -158,7 +165,8 @@ object JsonSchema {
         items = items,
         anyOf = anyOf,
         maxItems = maxItems,
-        maxProperties = maxProperties
+        maxProperties = maxProperties,
+        additionalProperties = additionalProperties
       )
     }
   }

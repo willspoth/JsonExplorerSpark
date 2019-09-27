@@ -70,7 +70,7 @@ object SparkMain {
     val attributeTree: AttributeTree = RewriteAttributes.attributeListToAttributeTree(extractedAttributes)
 
     // set objectKeySpaceThreshold to 0.0 to disable var_objects
-    RewriteAttributes.rewriteSemanticTypes(attributeTree,1.0,0.0,1.0)
+    RewriteAttributes.rewriteSemanticTypes(attributeTree, config.kse,0.0,1.0)
 
     // TODO check type entropy, might be a bit screwy since it was negative
     // get schemas to break on
@@ -119,12 +119,15 @@ object SparkMain {
     log += LogOutput("OptimizationTime",optimizationRunTime.toString,"Optimization Took: "," ms")
     log += LogOutput("FVCreationTime",FVRunTime.toString,"FV Creation Took: "," ms")
     log += LogOutput("TotalTime",(endTime - startTime).toString,"Total execution time: ", " ms")
+    config.spark.conf.getAll.foreach{case(k,v) => log += LogOutput(k,v,k+": ")}
+    log += LogOutput("kse",config.kse.toString,"KSE: ")
 
     println(SizeEstimator.estimate(featureVectors.filter(x=> x._1.isEmpty || attributeMap.get(x._1).get.`type`.contains(JE_Var_Object))))
     println(SizeEstimator.estimate(featureVectors))
 
 
-    val logFile = new FileWriter("log.json",true)
+    val logFile = new FileWriter(config.fileName.split("/").last.split("-").head+".USlog",true)
+    val jss = if(config.writeJsonSchema) ",\"json-schema\":"+JsonSchemaString else ""
     logFile.write("{" + log.map(_.toJson).mkString(",") + "}\n")
     logFile.close()
     println(log.map(_.toString).mkString("\n"))

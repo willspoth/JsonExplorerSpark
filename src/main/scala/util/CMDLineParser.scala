@@ -14,7 +14,9 @@ object CMDLineParser {
                     spark: SparkSession,
                     memory: Option[Boolean],
                     k: Int,
+                    kse: Double,
                     name: String,
+                    writeJsonSchema: Boolean,
                     argMap: mutable.HashMap[String, String],
                     generateDot: Boolean = false,
                     useUI: Boolean = false
@@ -48,16 +50,32 @@ object CMDLineParser {
       case _ | None => 0
     }
 
+    val kse: Double = argMap.get("kse") match {
+      case Some(s) =>
+        try {
+          s.toDouble
+        } catch {
+          case e: Exception => throw new Exception("Make sure kse is a double in the form kse 1.0, make 0.0 to disable")
+        }
+      case _ | None => 0.0
+    }
+
     val testMode: Boolean = argMap.get("testMode") match {
       case Some("true" | "t" | "y" | "yes") => true
       case Some("n" | "no" | "false") => false
       case _ | None => false
     }
 
+    val writeJsonSchema: Boolean = argMap.get("schema") match {
+      case Some("true" | "t" | "y" | "yes") => true
+      case Some("n" | "no" | "false" | "f") => false
+      case _ | None => true
+    }
+
     // spark config
     val spark = createSparkSession(argMap.get("config"))
 
-    return config(filename, spark.sparkContext.textFile(filename), spark, memory, k, spark.conf.get("name").toString, argMap)
+    return config(filename, spark.sparkContext.textFile(filename), spark, memory, k, kse,spark.conf.get("name").toString, writeJsonSchema, argMap)
   }
 
 
