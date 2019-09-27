@@ -14,7 +14,9 @@ object FeatureVectors {
     return mutable.ListBuffer[Any]()
   }
 
-  def create(schemas: Seq[AttributeName],row: JsonExplorerType
+  def create(schemas: Seq[AttributeName],
+             row: JsonExplorerType,
+             variableObjects: Set[AttributeName]
             ): List[(AttributeName, mutable.HashMap[AttributeName,mutable.Set[JsonExplorerType]])] =
   {
     val rows = mutable.HashMap[AttributeName, mutable.HashMap[AttributeName,mutable.Set[JsonExplorerType]]]()
@@ -26,7 +28,20 @@ object FeatureVectors {
         case None => rows.put(schema,mutable.HashMap[AttributeName,mutable.Set[JsonExplorerType]](v))
       }
     })
-    rows.toList
+    val spaceHack = variableObjects.map((_,mutable.HashMap[AttributeName,mutable.Set[JsonExplorerType]]())).toMap
+    rows.flatMap(r => {
+      spaceHack.get(r._1) match {
+        case Some(m) =>
+          r._2.foreach(x => {
+            m.get(x._1) match {
+              case Some(s) => m.put(x._1,x._2 ++ s)
+              case None => m.put(x._1,x._2)
+            }
+          })
+          List()
+        case None => List(r)
+      }
+    }).toList ++ spaceHack.toList.filter(_._2.nonEmpty)
   }
 
   def createCombiner(row: mutable.HashMap[AttributeName, mutable.Set[JsonExplorerType]]

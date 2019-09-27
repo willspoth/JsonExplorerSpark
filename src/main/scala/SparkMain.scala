@@ -82,13 +82,15 @@ object SparkMain {
     val optimizationTime = System.currentTimeMillis()
     val optimizationRunTime = optimizationTime - extractionTime
 
+    val attributeMap = RewriteAttributes.attributeTreeToAttributeMap(attributeTree)
+
+    val variableObjects: Set[AttributeName] = attributeMap.filter(x=> !x._1.isEmpty && attributeMap.get(x._1).get.`type`.contains(JE_Var_Object)).map(_._1).toSet
+
 
     // create feature vectors, currently should work if schemas generated from subset of training data
     val featureVectors: RDD[(AttributeName,mutable.HashMap[Map[AttributeName,mutable.Set[JsonExplorerType]],Int])] =
-      shreddedRecords.flatMap(FeatureVectors.create(schemas,_))
+      shreddedRecords.flatMap(FeatureVectors.create(schemas,_,variableObjects))
         .combineByKey(FeatureVectors.createCombiner,FeatureVectors.mergeValue,FeatureVectors.mergeCombiners)
-
-    val attributeMap = RewriteAttributes.attributeTreeToAttributeMap(attributeTree)
 
 
     // BiMax algorithm
@@ -113,7 +115,7 @@ object SparkMain {
     val JsonSchema: util.JsonSchema.JSS = util.NodeToJsonSchema.biMaxToJsonSchema(rawSchemas, attributeMap)
     val JsonSchemaString = JsonSchema.toString
 
-    println(JsonSchemaString)
+//    println(JsonSchemaString)
 
     log += LogOutput("ExtractionTime",extractionRunTime.toString,"Extraction Took: "," ms")
     log += LogOutput("OptimizationTime",optimizationRunTime.toString,"Optimization Took: "," ms")
@@ -122,8 +124,8 @@ object SparkMain {
     config.spark.conf.getAll.foreach{case(k,v) => log += LogOutput(k,v,k+": ")}
     log += LogOutput("kse",config.kse.toString,"KSE: ")
 
-    println(SizeEstimator.estimate(featureVectors.filter(x=> x._1.isEmpty || attributeMap.get(x._1).get.`type`.contains(JE_Var_Object))))
-    println(SizeEstimator.estimate(featureVectors))
+//    println(SizeEstimator.estimate(featureVectors.filter(x=> x._1.isEmpty || attributeMap.get(x._1).get.`type`.contains(JE_Var_Object))))
+//    println(SizeEstimator.estimate(featureVectors))
 
 
     val logFile = new FileWriter(config.fileName.split("/").last.split("-").head+".USlog",true)
