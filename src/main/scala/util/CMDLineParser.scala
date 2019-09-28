@@ -10,6 +10,7 @@ import scala.io.Source
 object CMDLineParser {
 
   case class config(fileName: String,
+                    logFileName: String,
                     train: RDD[String],
                     spark: SparkSession,
                     memory: Option[Boolean],
@@ -72,10 +73,15 @@ object CMDLineParser {
       case _ | None => true
     }
 
+    val logFileName: String = argMap.get("log") match {
+      case Some(s) => s
+      case _ | None => filename.split("/").last.split("-").head+".USlog"
+    }
+
     // spark config
     val spark = createSparkSession(argMap.get("config"))
 
-    return config(filename, spark.sparkContext.textFile(filename), spark, memory, k, kse,spark.conf.get("name").toString, writeJsonSchema, argMap)
+    return config(filename,logFileName, spark.sparkContext.textFile(filename), spark, memory, k, kse,spark.conf.get("name").toString, writeJsonSchema, argMap)
   }
 
 

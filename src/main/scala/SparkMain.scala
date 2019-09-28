@@ -88,22 +88,23 @@ object SparkMain {
 
 
     // create feature vectors, currently should work if schemas generated from subset of training data
-    val featureVectors: RDD[(AttributeName,mutable.HashMap[Map[AttributeName,mutable.Set[JsonExplorerType]],Int])] =
-      shreddedRecords.flatMap(FeatureVectors.create(schemas,_,variableObjects))
-        .combineByKey(FeatureVectors.createCombiner,FeatureVectors.mergeValue,FeatureVectors.mergeCombiners)
+    val featureVectors: RDD[(AttributeName,Either[mutable.HashMap[Map[AttributeName,mutable.Set[JsonExplorerType]],Int],mutable.HashMap[AttributeName,(mutable.Set[JsonExplorerType],Int)]])] =
+      shreddedRecords.flatMap(FeatureVectors.create(schemas,_))
+        .combineByKey(x => FeatureVectors.createCombiner(variableObjects,x),FeatureVectors.mergeValue,FeatureVectors.mergeCombiners)
 
 
     // BiMax algorithm
     val rawSchemas: Map[AttributeName,Types.DisjointNodes] = featureVectors.map(x => {
-        if(x._1.isEmpty || !attributeMap.get(x._1).get.`type`.contains(JE_Var_Object))
-          (x._1,BiMax.OurBiMax2.bin(x._2))
-        else {
-          (x._1,
+        x._2 match {
+          case Left(l) => (x._1,BiMax.OurBiMax2.bin(l))
+          case Right(r) =>
+            (x._1,
             mutable.Seq(mutable.Seq(
-              BiMaxNode(Set[AttributeName](),Map[AttributeName,mutable.Set[JsonExplorerType]](),0,x._2.toList.to[mutable.ListBuffer])
+              BiMaxNode(Set[AttributeName](),Map[AttributeName,mutable.Set[JsonExplorerType]](),0,r.map(x => (Map[AttributeName,mutable.Set[JsonExplorerType]]((x._1,x._2._1)),x._2._2)).toList.to[mutable.ListBuffer])
             ))
           ) // don't do bimax on var_objects
         }
+
     })
       .map(x => if (x._2 != null) (x._1,BiMax.OurBiMax2.rewrite(x._2)) else x).collect().toMap
 
@@ -128,7 +129,7 @@ object SparkMain {
 //    println(SizeEstimator.estimate(featureVectors))
 
 
-    val logFile = new FileWriter(config.fileName.split("/").last.split("-").head+".USlog",true)
+    val logFile = new FileWriter(config.logFileName,true)
     val jss = if(config.writeJsonSchema) ",\"json-schema\":"+JsonSchemaString else ""
     logFile.write("{" + log.map(_.toJson).mkString(",") + jss +"}\n")
     logFile.close()
