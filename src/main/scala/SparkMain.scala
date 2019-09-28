@@ -130,7 +130,7 @@ object SparkMain {
 
     val logFile = new FileWriter(config.fileName.split("/").last.split("-").head+".USlog",true)
     val jss = if(config.writeJsonSchema) ",\"json-schema\":"+JsonSchemaString else ""
-    logFile.write("{" + log.map(_.toJson).mkString(",") + "}\n")
+    logFile.write("{" + log.map(_.toJson).mkString(",") + jss +"}\n")
     logFile.close()
     println(log.map(_.toString).mkString("\n"))
 
