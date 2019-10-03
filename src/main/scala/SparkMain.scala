@@ -29,7 +29,15 @@ object SparkMain {
 
     log += LogOutput("inputFile",config.fileName,"Input File: ")
 
+
+    //val s = config.spark.read.json(config.fileName).schema
+
+
     val startTime = System.currentTimeMillis() // Start timer
+
+
+//    Naive.Flat.generate(config.train,log)
+//    ???
 
 
     /*
@@ -39,15 +47,15 @@ object SparkMain {
     val shreddedRecords = config.train.mapPartitions(x=>JacksonShredder.shred(x))
 
 
-    // for storage comparison
-    config.memory match {
-      case Some(inmemory) =>
-        if(inmemory)
-          shreddedRecords.persist(StorageLevel.MEMORY_ONLY)
-        else
-          shreddedRecords.persist(StorageLevel.DISK_ONLY)
-      case None => // don't cache at all
-    }
+//    // for storage comparison
+//    config.memory match {
+//      case Some(inmemory) =>
+//        if(inmemory)
+//          shreddedRecords.persist(StorageLevel.MEMORY_ONLY)
+//        else
+//          shreddedRecords.persist(StorageLevel.DISK_ONLY)
+//      case None => // don't cache at all
+//    }
 
     /*
       Preform the extraction phase:
@@ -74,10 +82,10 @@ object SparkMain {
 
     // TODO check type entropy, might be a bit screwy since it was negative
     // get schemas to break on
-    val schemas: Seq[AttributeName] = RewriteAttributes.getSchemas(attributeTree)
-      .map(x => x.map(y => if(y.isInstanceOf[Int]) Star else y)) // remove possibility of weird array stuff
+    val schemas: Seq[(AttributeName,JsonExplorerType)] = RewriteAttributes.getSchemas(attributeTree)
+      .map(x => (x._1.map(y => if(y.isInstanceOf[Int]) Star else y),x._2)) // remove possibility of weird array stuff
       .toSeq
-      .sortBy(_.size)(Ordering[Int].reverse)
+      .sortBy(_._1.size)(Ordering[Int].reverse)
 
     val optimizationTime = System.currentTimeMillis()
     val optimizationRunTime = optimizationTime - extractionTime
@@ -89,7 +97,7 @@ object SparkMain {
 
     // create feature vectors, currently should work if schemas generated from subset of training data
     val featureVectors: RDD[(AttributeName,Either[mutable.HashMap[Map[AttributeName,mutable.Set[JsonExplorerType]],Int],mutable.HashMap[AttributeName,(mutable.Set[JsonExplorerType],Int)]])] =
-      shreddedRecords.flatMap(FeatureVectors.create(schemas,_))
+      shreddedRecords.flatMap(FeatureVectors.create(schemas.map(_._1).filterNot(_.isEmpty),_))
         .combineByKey(x => FeatureVectors.createCombiner(variableObjects,x),FeatureVectors.mergeValue,FeatureVectors.mergeCombiners)
 
 
@@ -116,7 +124,7 @@ object SparkMain {
     val JsonSchema: util.JsonSchema.JSS = util.NodeToJsonSchema.biMaxToJsonSchema(rawSchemas, attributeMap)
     val JsonSchemaString = JsonSchema.toString
 
-//    println(JsonSchemaString)
+    println(JsonSchemaString)
 
     log += LogOutput("ExtractionTime",extractionRunTime.toString,"Extraction Took: "," ms")
     log += LogOutput("OptimizationTime",optimizationRunTime.toString,"Optimization Took: "," ms")

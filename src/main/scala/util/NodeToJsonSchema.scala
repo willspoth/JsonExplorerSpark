@@ -1,6 +1,6 @@
 package util
 
-import Explorer.{Attribute, AttributeTree, JE_Array, JE_Empty_Array, JE_Empty_Object, JE_Object, JE_Var_Object, JsonExplorerType, Types}
+import Explorer.{Attribute, AttributeTree, JE_Array, JE_Empty_Array, JE_Empty_Object, JE_Obj_Array, JE_Object, JE_Var_Object, JsonExplorerType, Types}
 import Explorer.Types.{AttributeName, BiMaxNode, BiMaxStruct}
 import Optimizer.RewriteAttributes
 import util.JsonSchema.{JSA_additionalProperties, JSA_anyOf, JSA_description, JSA_items, JSA_maxItems, JSA_maxProperties, JSA_properties, JSA_required, JSA_type, JSS, JsonSchemaStructure}
@@ -120,7 +120,21 @@ object NodeToJsonSchema {
           // check for variable objects
           if (t.getType().equals(JE_Var_Object)) seq.append(JSA_additionalProperties(true))
 
-          // TODO arrays of objects
+          // TODO array of objects
+          if(t.getType().equals(JE_Obj_Array)){
+            val items: Seq[JSS] = attributeTree.children.map(x => attributeToJSS(
+              x._2,
+              SpecialSchemas,
+              attributeMap,
+              attribute.multiplicity,
+              attribute.name ++ List(x._1)
+            )).toSeq
+
+            val item: JSS = if (items.size > 1) JSS(Seq(JSA_anyOf(items))) else items.head
+            seq.append(JSA_items(
+              item
+            ))
+          }
 
           // add JSA_required
           if(t.getType().equals(JE_Object)){

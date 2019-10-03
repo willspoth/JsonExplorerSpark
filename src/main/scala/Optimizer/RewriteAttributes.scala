@@ -79,7 +79,7 @@ object RewriteAttributes {
       attr match {
         case JE_Array(xs) =>
           if(!atLeastOneObjectInArray)
-            atLeastOneObjectInArray = !xs.filter(_.getType().equals(JE_Object)).filter(_.getType().equals(JE_Empty_Object)).isEmpty
+            atLeastOneObjectInArray = !xs.filter(x => x.getType().equals(JE_Object) || x.getType().equals(JE_Empty_Object)).isEmpty
           xs.filterNot(_.getType().equals(JE_Object)).filterNot(_.getType().equals(JE_Empty_Object)).isEmpty // array with only objects
         case JE_Empty_Array =>
           true
@@ -154,20 +154,20 @@ object RewriteAttributes {
 
 
 
-  def getSchemas(attributeTree: AttributeTree): mutable.Set[AttributeName] = {
-    val schemas: mutable.Set[AttributeName] = mutable.Set[AttributeName]()
+  def getSchemas(attributeTree: AttributeTree): mutable.Set[(AttributeName,JsonExplorerType)] = {
+    val schemas = mutable.Set[(AttributeName,JsonExplorerType)]()
     getSchemas(attributeTree,schemas)
     return schemas
   }
 
   // returns a set of names that are variable_objects and arrays_of_objects
-  private def getSchemas(attributeTree: AttributeTree, schemas: mutable.Set[AttributeName]): Unit = {
+  private def getSchemas(attributeTree: AttributeTree, schemas: mutable.Set[(AttributeName,JsonExplorerType)]): Unit = {
     if(attributeTree.name.equals("$")) // is root
-      schemas.add(ListBuffer[Any]())
+      schemas.add(ListBuffer[Any](),JE_Object)
     else if(attributeTree.attribute.`type`.map(_.getType()).contains(JE_Var_Object))
-      schemas.add(attributeTree.attribute.name)
+      schemas.add((attributeTree.attribute.name,JE_Var_Object))
     else if(attributeTree.attribute.`type`.map(_.getType()).contains(JE_Obj_Array))
-      schemas.add(attributeTree.attribute.name)
+      schemas.add((attributeTree.attribute.name,JE_Obj_Array))
     attributeTree.children.foreach(x => getSchemas(x._2, schemas))
   }
 
