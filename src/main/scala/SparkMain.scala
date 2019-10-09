@@ -130,6 +130,12 @@ object SparkMain {
     log += LogOutput("OptimizationTime",optimizationRunTime.toString,"Optimization Took: "," ms")
     log += LogOutput("FVCreationTime",FVRunTime.toString,"FV Creation Took: "," ms")
     log += LogOutput("TotalTime",(endTime - startTime).toString,"Total execution time: ", " ms")
+    log += LogOutput("TrainPercent",config.trainPercent.toString,"TrainPercent: ")
+    log += LogOutput("ValidationSize",config.validationSize.toString,"ValidationSize: ")
+    log += LogOutput("Seed",config.seed match {
+      case Some(i) => i.toString
+      case None => "None"},"Seed: ")
+
     config.spark.conf.getAll.foreach{case(k,v) => log += LogOutput(k,v,k+": ")}
     log += LogOutput("kse",config.kse.toString,"KSE: ")
 

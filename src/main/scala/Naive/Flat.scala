@@ -8,6 +8,7 @@ import org.apache.spark.rdd.RDD
 
 import scala.collection.mutable
 
+// motivation -> create ground truth from documentation page, show how bad validation is
 
 object Flat {
 

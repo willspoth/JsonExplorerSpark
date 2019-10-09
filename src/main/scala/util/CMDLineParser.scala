@@ -12,6 +12,9 @@ object CMDLineParser {
   case class config(fileName: String,
                     logFileName: String,
                     train: RDD[String],
+                    trainPercent: Double,
+                    validationSize: Int,
+                    seed: Option[Int],
                     spark: SparkSession,
                     memory: Option[Boolean],
                     k: Int,
@@ -78,10 +81,27 @@ object CMDLineParser {
       case _ | None => filename.split("/").last.split("-").head+".USlog"
     }
 
+    val seed: Option[Int] = argMap.get("seed") match {
+      case Some(s) => Some(s.toInt)
+      case None => None
+    }
+
+    val trainPercent: Double = argMap.get("train") match {
+      case Some(v) => v.toDouble
+      case None => 100.0
+    }
+
+    val validationSize: Int = argMap.get("val") match {
+      case Some(v) => v.toInt
+      case None => 0
+    }
+
     // spark config
     val spark = createSparkSession(argMap.get("config"))
 
-    return config(filename,logFileName, spark.sparkContext.textFile(filename), spark, memory, k, kse,spark.conf.get("name").toString, writeJsonSchema, argMap)
+    val (train, validation) = split(spark, filename, trainPercent, validationSize, seed)
+
+    return config(filename, logFileName, train, trainPercent, validationSize, seed, spark, memory, k, kse,spark.conf.get("name").toString, writeJsonSchema, argMap)
   }
 
 
@@ -98,6 +118,29 @@ object CMDLineParser {
     conf.setAll(args)
     val spark: SparkSession = org.apache.spark.sql.SparkSession.builder.config(conf).getOrCreate()
     return spark
+  }
+
+  def split(spark:SparkSession, fileName: String, trainPercent: Double, validationSize: Int, seed: Option[Int]): (RDD[String],RDD[String]) = {
+    val totalNumberOfLines: Long = spark.sparkContext.textFile(fileName).filter(x => (x.size > 0 && x.charAt(0).equals('{'))).count()
+    var trainSize: Double = totalNumberOfLines.toDouble*(trainPercent/100.0)
+    if(trainPercent > 100.0)
+      throw new Exception("Test Percent can't be higher than 100%, Found: " + trainPercent.toString)
+    else if((trainSize + validationSize) > totalNumberOfLines) {
+      trainSize = totalNumberOfLines.toDouble - validationSize.toDouble
+      println("Total Percent can't be higher than 100%, Found: " + trainPercent.toString + " + " + (validationSize.toDouble/totalNumberOfLines.toDouble).toString + " setting test Percent to " + trainPercent.toString)
+    }
+    val overflow: Double = totalNumberOfLines.toDouble - validationSize.toDouble - trainSize.toDouble
+    val data: Array[RDD[String]] = if(seed.equals(None)) {
+      spark.sparkContext.textFile(fileName).filter(x => (x.size > 0 && x.charAt(0).equals('{')))
+        .randomSplit(Array[Double](trainSize, validationSize.toDouble, overflow))
+    } else {
+      spark.sparkContext.textFile(fileName).filter(x => (x.size > 0 && x.charAt(0).equals('{')))
+        .randomSplit(Array[Double](trainSize, validationSize.toDouble, overflow), seed = seed.get)
+    } // read file
+    val train: RDD[String] = data.head
+    val validation: RDD[String] = data(1)
+
+    return (train, validation)
   }
 
 }

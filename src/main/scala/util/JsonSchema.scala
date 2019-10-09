@@ -69,6 +69,9 @@ object JsonSchema {
   case class JSA_anyOf(value: Seq[JSS]) extends JsonSchemaStructure {
     override def toString: String = s""""anyOf":[${value.map(x => x.toString).mkString(",")}]"""
   }
+  case class JSA_oneOf(value: Seq[JSS]) extends JsonSchemaStructure {
+    override def toString: String = s""""oneOf":[${value.map(x => x.toString).mkString(",")}]"""
+  }
   case class JSA_maxItems(value: Double) extends JsonSchemaStructure {
     override def toString: String = s""""maxItems":${value.toString}"""
   }
@@ -94,6 +97,7 @@ object JsonSchema {
                   required: Option[ JSA_required ] = None,
                   items: Option[ JSA_items ] = None,
                   anyOf: Option[ JSA_anyOf ] = None,
+                  oneOf: Option[ JSA_oneOf ] = None,
                   maxItems: Option[ JSA_maxItems ] = None,
                   maxProperties: Option[ JSA_maxProperties ] = None,
                   additionalProperties: Option[ JSA_additionalProperties ] = None
@@ -112,6 +116,7 @@ object JsonSchema {
           required,
           items,
           anyOf,
+          oneOf,
           maxItems,
           maxProperties,
           additionalProperties
@@ -133,6 +138,7 @@ object JsonSchema {
       var required: Option[ JSA_required ] = None
       var items: Option[ JSA_items ] = None
       var anyOf: Option[ JSA_anyOf ] = None
+      var oneOf: Option[ JSA_oneOf ] = None
       var maxItems: Option[ JSA_maxItems ] = None
       var maxProperties: Option[ JSA_maxProperties ] = None
       var additionalProperties: Option[ JSA_additionalProperties ] = None
@@ -148,6 +154,7 @@ object JsonSchema {
           case v: JSA_required => required = Some(v)
           case v: JSA_items => items = Some(v)
           case v: JSA_anyOf => anyOf = Some(v)
+          case v: JSA_oneOf => oneOf = Some(v)
           case v: JSA_maxItems => maxItems = Some(v)
           case v: JSA_maxProperties => maxProperties = Some(v)
           case v: JSA_additionalProperties => additionalProperties = Some(v)
@@ -164,6 +171,7 @@ object JsonSchema {
         required = required,
         items = items,
         anyOf = anyOf,
+        oneOf = oneOf,
         maxItems = maxItems,
         maxProperties = maxProperties,
         additionalProperties = additionalProperties
