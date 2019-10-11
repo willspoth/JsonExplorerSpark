@@ -104,17 +104,17 @@ object SparkMain {
     // BiMax algorithm
     val rawSchemas: Map[AttributeName,Types.DisjointNodes] = featureVectors.map(x => {
         x._2 match {
-          case Left(l) => (x._1,BiMax.OurBiMax2.bin(l))
+          case Left(l) => (x._1,BiMax.OurBiMax2.bin(l),true)
           case Right(r) =>
             (x._1,
             mutable.Seq(mutable.Seq(
               BiMaxNode(Set[AttributeName](),Map[AttributeName,mutable.Set[JsonExplorerType]](),0,r.map(x => (Map[AttributeName,mutable.Set[JsonExplorerType]]((x._1,x._2._1)),x._2._2)).toList.to[mutable.ListBuffer])
-            ))
-          ) // don't do bimax on var_objects
+            )), false // don't do bimax on var_objects
+          )
         }
 
     })
-      .map(x => if (x._2 != null) (x._1,BiMax.OurBiMax2.rewrite(x._2)) else x).collect().toMap
+      .map(x => if (x._3) (x._1,BiMax.OurBiMax2.rewrite(x._2)) else (x._1,x._2)).collect().toMap
 
 
     val endTime = System.currentTimeMillis() // End Timer
@@ -123,8 +123,6 @@ object SparkMain {
     // output schemas as json-schema
     val JsonSchema: util.JsonSchema.JSS = util.NodeToJsonSchema.biMaxToJsonSchema(rawSchemas, attributeMap)
     val JsonSchemaString = JsonSchema.toString
-
-    println(JsonSchemaString)
 
     log += LogOutput("ExtractionTime",extractionRunTime.toString,"Extraction Took: "," ms")
     log += LogOutput("OptimizationTime",optimizationRunTime.toString,"Optimization Took: "," ms")
@@ -144,8 +142,8 @@ object SparkMain {
 
 
     val logFile = new FileWriter(config.logFileName,true)
-    val jss = if(config.writeJsonSchema) ",\"json-schema\":"+JsonSchemaString else ""
-    logFile.write("{" + log.map(_.toJson).mkString(",") + jss +"}\n")
+    logFile.write("{" + log.map(_.toJson).mkString(",") + "}\n")
+    if(config.writeJsonSchema) logFile.write(JsonSchemaString + "\n")
     logFile.close()
     println(log.map(_.toString).mkString("\n"))
 
