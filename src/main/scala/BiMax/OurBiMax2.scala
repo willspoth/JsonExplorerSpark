@@ -127,10 +127,10 @@ object OurBiMax2 {
 
     disjointNodes.map(mixedNodes => {
       var rerun = false
-      var tempNodes = mixedNodes
+      var tempNodes = mixedNodes.sortBy(_.schema.size)
       do {
         val res = bottomUpRewrite(tempNodes)
-        tempNodes = res._1
+        tempNodes = res._1.sortBy(_.schema.size)
         rerun = res._2
       } while(rerun)
       tempNodes

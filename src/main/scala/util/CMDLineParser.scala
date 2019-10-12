@@ -96,10 +96,15 @@ object CMDLineParser {
       case None => 0
     }
 
+    val numberOfRows: Option[Int] = argMap.get("numberOfRows") match {
+      case Some(v) => Some(v.toInt)
+      case None => None
+    }
+
     // spark config
     val spark = createSparkSession(argMap.get("config"))
 
-    val (train, validation) = split(spark, filename, trainPercent, validationSize, seed)
+    val (train, validation) = split(spark, filename, trainPercent, validationSize, seed, numberOfRows)
 
     return config(filename, logFileName, train, trainPercent, validationSize, seed, spark, memory, k, kse,spark.conf.get("name").toString, writeJsonSchema, argMap)
   }
@@ -120,8 +125,12 @@ object CMDLineParser {
     return spark
   }
 
-  def split(spark:SparkSession, fileName: String, trainPercent: Double, validationSize: Int, seed: Option[Int]): (RDD[String],RDD[String]) = {
-    val totalNumberOfLines: Long = spark.sparkContext.textFile(fileName).filter(x => (x.size > 0 && x.charAt(0).equals('{'))).count()
+  def split(spark:SparkSession, fileName: String, trainPercent: Double, validationSize: Int, seed: Option[Int], totalRows: Option[Int]): (RDD[String],RDD[String]) = {
+    val totalNumberOfLines: Long = totalRows match {
+      case Some(i) => i
+      case None =>
+        spark.sparkContext.textFile(fileName).filter(x => (x.size > 0 && x.charAt(0).equals('{'))).count()
+    }
     var trainSize: Double = totalNumberOfLines.toDouble*(trainPercent/100.0)
     if(trainPercent > 100.0)
       throw new Exception("Test Percent can't be higher than 100%, Found: " + trainPercent.toString)

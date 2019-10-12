@@ -30,9 +30,6 @@ object SparkMain {
     log += LogOutput("inputFile",config.fileName,"Input File: ")
 
 
-    //val s = config.spark.read.json(config.fileName).schema
-
-
     val startTime = System.currentTimeMillis() // Start timer
 
 
@@ -94,6 +91,8 @@ object SparkMain {
 
     val variableObjects: Set[AttributeName] = attributeMap.filter(x=> !x._1.isEmpty && attributeMap.get(x._1).get.`type`.contains(JE_Var_Object)).map(_._1).toSet
 
+    val RewriteTime = System.currentTimeMillis() // End Timer
+    val RewriteRunTime = RewriteTime - extractionRunTime
 
     // create feature vectors, currently should work if schemas generated from subset of training data
     val featureVectors: RDD[(AttributeName,Either[mutable.HashMap[Map[AttributeName,mutable.Set[JsonExplorerType]],Int],mutable.HashMap[AttributeName,(mutable.Set[JsonExplorerType],Int)]])] =
@@ -117,8 +116,9 @@ object SparkMain {
       .map(x => if (x._3) (x._1,BiMax.OurBiMax2.rewrite(x._2)) else (x._1,x._2)).collect().toMap
 
 
+
     val endTime = System.currentTimeMillis() // End Timer
-    val FVRunTime = endTime - optimizationTime
+    val fvbiMaxRunTime = endTime - optimizationTime
 
     // output schemas as json-schema
     val JsonSchema: util.JsonSchema.JSS = util.NodeToJsonSchema.biMaxToJsonSchema(rawSchemas, attributeMap)
@@ -126,7 +126,7 @@ object SparkMain {
 
     log += LogOutput("ExtractionTime",extractionRunTime.toString,"Extraction Took: "," ms")
     log += LogOutput("OptimizationTime",optimizationRunTime.toString,"Optimization Took: "," ms")
-    log += LogOutput("FVCreationTime",FVRunTime.toString,"FV Creation Took: "," ms")
+    log += LogOutput("FVAndBiMaxTime",fvbiMaxRunTime.toString,"FV Creation and BiMax Took: "," ms")
     log += LogOutput("TotalTime",(endTime - startTime).toString,"Total execution time: ", " ms")
     log += LogOutput("TrainPercent",config.trainPercent.toString,"TrainPercent: ")
     log += LogOutput("ValidationSize",config.validationSize.toString,"ValidationSize: ")
