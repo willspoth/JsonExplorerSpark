@@ -6,22 +6,25 @@ import Explorer.Types.{AttributeName, BiMaxNode, BiMaxStruct, DisjointNodes}
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
+
 object OurBiMax2 {
+
+//  val logger = Logger.getLogger(this.getClass)
 
   object setRelation extends Enumeration {
     val subset,combined,disjoint = Value
   }
 
-  private def setRelationship(target: Map[AttributeName,mutable.Set[JsonExplorerType]],
-                              test: Map[AttributeName,mutable.Set[JsonExplorerType]]
+  private def setRelationship(target: Set[AttributeName],
+                              test: Set[AttributeName]
                              ): setRelation.Value = {
-    val t = test.filter(!_._1.isEmpty).map{case(attribute, types) => target.contains(attribute)}
-    if(t.reduce(_&&_)){
+
+    val testClean = test.filterNot(_.isEmpty)
+    if(testClean.subsetOf(target)){
       return setRelation.subset
     } else {
-      if(t.toList.contains(true))
-        return setRelation.combined
-      else return setRelation.disjoint
+      testClean.foreach(attr => if(target.contains(attr)) return setRelation.combined)
+      return setRelation.disjoint
     }
   }
 
@@ -32,28 +35,28 @@ object OurBiMax2 {
 
     val disjointNodes: mutable.ListBuffer[BiMaxStruct] = mutable.ListBuffer[BiMaxStruct]()
 
-    var remainingNodes: mutable.ListBuffer[(Map[AttributeName,mutable.Set[JsonExplorerType]],Int,Boolean)] = fvs.map(x => (x._1,x._2,false)).toList.to[ListBuffer]
+    var remainingNodes: mutable.ListBuffer[(Set[AttributeName],Map[AttributeName,mutable.Set[JsonExplorerType]],Int,Boolean)] = fvs.map(x => (x._1.map(_._1).toSet,x._1,x._2,false)).toList.to[ListBuffer].sortBy(_._2.size)(Ordering[Int].reverse)
 
     var currentStruct = mutable.ListBuffer[BiMaxNode]()
 
     // if subset once then never disjoint
     while(!remainingNodes.isEmpty) {
-      val subsetSchemas   = mutable.ListBuffer[(Map[AttributeName,mutable.Set[JsonExplorerType]],Int,Boolean)]()
-      val combinedSchemas = mutable.ListBuffer[(Map[AttributeName,mutable.Set[JsonExplorerType]],Int,Boolean)]()
-      val disjointSchemas = mutable.ListBuffer[(Map[AttributeName,mutable.Set[JsonExplorerType]],Int,Boolean)]()
+      val subsetSchemas   = mutable.ListBuffer[(Set[AttributeName],Map[AttributeName,mutable.Set[JsonExplorerType]],Int,Boolean)]()
+      val combinedSchemas = mutable.ListBuffer[(Set[AttributeName],Map[AttributeName,mutable.Set[JsonExplorerType]],Int,Boolean)]()
+      val disjointSchemas = mutable.ListBuffer[(Set[AttributeName],Map[AttributeName,mutable.Set[JsonExplorerType]],Int,Boolean)]()
 
       val target = remainingNodes.head
       remainingNodes.tail.foreach(test => {
         setRelationship(target._1,test._1) match {
           case setRelation.subset => subsetSchemas.append(test)
-          case setRelation.combined => combinedSchemas.append((test._1,test._2,true))
+          case setRelation.combined => combinedSchemas.append((test._1,test._2,test._3,true))
           case setRelation.disjoint =>
-            if(test._3) combinedSchemas.append(test)
+            if(test._4) combinedSchemas.append(test)
             else disjointSchemas.append(test)
         }
       })
 
-      currentStruct.append(BiMaxNode(target._1.map(_._1).toSet,target._1,target._2,subsetSchemas.map(x=>(x._1,x._2))))
+      currentStruct.append(BiMaxNode(target._1,target._2,target._3,subsetSchemas.map(x=>(x._2,x._3))))
 
       if(combinedSchemas.isEmpty) {
         disjointNodes.append(currentStruct)
@@ -66,7 +69,9 @@ object OurBiMax2 {
     disjointNodes
   }
 
-  private def isCovered(head: Set[AttributeName], merged: Set[AttributeName]): Boolean = head.subsetOf(merged)
+  private def isCovered(head: Set[AttributeName], merged: Set[AttributeName]): Boolean = {
+    head.subsetOf(merged)
+  }
 
   private def strictSubset(base: Set[AttributeName], toTest: Set[AttributeName]): Boolean = toTest.subsetOf(base) && !toTest.equals(base)
 
@@ -82,6 +87,7 @@ object OurBiMax2 {
       }
     }
 
+    //logger.debug(("\t"*4) + "RemovingSubsets")
     var nodesToCheck = nodes.sortBy(_.schema.size)(Ordering[Int].reverse)
     val returnNodes = ListBuffer[BiMaxNode]()
     while(!nodesToCheck.isEmpty){
@@ -89,38 +95,42 @@ object OurBiMax2 {
       nodesToCheck = nodesToCheck.tail.filter(x => !updateIfSubset(target,x)) // negate to remove from pool
       returnNodes.append(target)
     }
-
+    //logger.debug(("\t"*4) + "Done Removing Subsets")
     return returnNodes
   }
 
 
-  private def rewriteNode(nodes: BiMaxStruct): (BiMaxStruct,Boolean) = {
-    if(nodes.size > 2) { // check broadest case first to reduce computation
-      val temp: Set[AttributeName] = nodes.tail.map(_.schema).reduce(_++_)
-      if (!isCovered(nodes.head.schema, temp))
-        return (nodes, false)
-    }
-    val test = nodes.head
-    nodes.tail.zipWithIndex.toSet.subsets().toList.filter(_.size > 1).map(_.toList.sortBy(_._2)).sortBy(x => (x.size,x.head._2)).map(_.map(_._1))
-      .foreach(testNodes =>
-        if(isCovered(
-          test.schema,
-          testNodes.map(_.schema).reduce(_++_)
-        )){
-          return (removeSubsets(ListBuffer(new BiMaxNode(testNodes.map(_.schema).reduce(_++_), Map[AttributeName,mutable.Set[JsonExplorerType]](),0,ListBuffer())) ++ nodes),true)
+  private def rewriteNode(head: BiMaxNode, childrenNodes: BiMaxStruct): (BiMaxStruct,Boolean) = {
+//    logger.debug(("\t"*3) + "Rewritting Node")
+    childrenNodes.toSet.subsets().filter(_.size > 1)
+      .foreach(testNodes => {
+        //        logger.debug(("\t"*3) + "Testing Node with combination size: " + testNodes.size)
+        val tailSchema = testNodes.map(_.schema).reduce(_ ++ _)
+        if (isCovered(
+          head.schema,
+          tailSchema
+        )) {
+          //logger.debug(("\t"*3) + "Done Rewritting Node")
+          return (removeSubsets(ListBuffer(new BiMaxNode(tailSchema, Map[AttributeName, mutable.Set[JsonExplorerType]](), 0, ListBuffer())) ++ childrenNodes ++ ListBuffer[BiMaxNode](head)), true)
         }
-      )
-    return (nodes,false) // base case return
+      })
+    //logger.debug(("\t"*3) + "Done Rewritting Node")
+    return (childrenNodes,false) // base case return
   } // if true then need collapse subsets and rerun
 
-  def rewrite(disjointNodes: DisjointNodes
-             ): DisjointNodes = {
+  def rewrite(disjointNodes: DisjointNodes): DisjointNodes = {
 
     def bottomUpRewrite(nodes: BiMaxStruct): (BiMaxStruct,Boolean) = { // boolean should rerun
       nodes.zipWithIndex.foreach{case(test,idx) =>
-        val (retNodes,checksubset) = rewriteNode(nodes.takeRight(idx+1))
-        if (checksubset)
-          return (removeSubsets(nodes.take(nodes.size-(idx+1)) ++ retNodes),true)
+        if(idx > 2) {
+//          logger.debug(("\t"*1) + "Testing Node idx: " + idx.toString)
+          val childNodes = nodes.take(idx)
+          if(isCovered(test.schema, childNodes.map(_.schema).reduce(_ ++ _))) {
+            val (retNodes, checksubset) = rewriteNode(test,childNodes) // take not inclusive, take(1) returns for element
+            if (checksubset)
+              return (removeSubsets(nodes.takeRight(nodes.size - (idx + 1)) ++ retNodes), true)
+          }
+        }
       }
       return (nodes,false)
     }
@@ -129,6 +139,10 @@ object OurBiMax2 {
       var rerun = false
       var tempNodes = mixedNodes.sortBy(_.schema.size)
       do {
+//        if(rerun)
+//          logger.debug(("\t"*0) + "Rerunning BiMax")
+//        else
+//          logger.debug(("\t"*0) + "Running BiMax")
         val res = bottomUpRewrite(tempNodes)
         tempNodes = res._1.sortBy(_.schema.size)
         rerun = res._2

@@ -267,7 +267,7 @@ object Types {
 
     val total: Int = filtered.map(_._2).reduce(_+_)
 
-    val entropy: Double = m
+    val entropyVals: mutable.Iterable[Double] = m
       .foldLeft(mutable.HashMap[String,Int]()){case(attrMap,(jeObj,count)) => {
         jeObj match {
           case JE_Object(xs) => xs.foreach(k => {
@@ -280,7 +280,10 @@ object Types {
         }
         attrMap
       }}
-      .map(x => (x._2.toDouble / total) * scala.math.log((x._2.toDouble / total))).reduce(_+_)
+      .map(x => (x._2.toDouble / total) * scala.math.log((x._2.toDouble / total)))
+
+
+    val entropy = if(entropyVals.nonEmpty) entropyVals.reduce(_+_) else 0.0
 
     if(entropy == 0.0)
       return Some(entropy)
@@ -298,7 +301,9 @@ object Types {
 
     val total: Int = filtered.map(_._2).reduce(_+_)
 
-    val entropy: Double = filtered.map(x => (x._2.toDouble / total) * scala.math.log((x._2.toDouble / total))).reduce(_+_)
+    val entropyVals: mutable.Iterable[Double] = filtered.map(x => (x._2.toDouble / total) * scala.math.log((x._2.toDouble / total)))
+
+    val entropy = if(entropyVals.nonEmpty) entropyVals.reduce(_+_) else 0.0
 
     if(entropy == 0.0)
       return Some(entropy)

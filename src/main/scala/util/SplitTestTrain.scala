@@ -38,15 +38,15 @@ object SplitTestTrain {
     data.saveAsTextFile(outputFileName)
   }
 
-  def main(args: Array[String]): Unit = {
-
-    val inputFileName: String = args(0)
-    val trainPercent: Double = args(1).toDouble
-    val validationSize: Int = args(2).toInt
-    val seed: Int = args(3).toInt
-    val spark = if(args.size == 5) createSparkSession(Some(args(4))) else createSparkSession(None)
-
-    split(spark,inputFileName,trainPercent,true,validationSize,true,seed)
-  }
+//  def main(args: Array[String]): Unit = {
+//
+//    val inputFileName: String = args(0)
+//    val trainPercent: Double = args(1).toDouble
+//    val validationSize: Int = args(2).toInt
+//    val seed: Int = args(3).toInt
+//    val spark = if(args.size == 5) createSparkSession(Some(args(4))) else createSparkSession(None)
+//
+//    split(spark,inputFileName,trainPercent,true,validationSize,true,seed)
+//  }
 
 }

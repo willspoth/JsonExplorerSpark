@@ -17,7 +17,7 @@ object CMDLineParser {
                     seed: Option[Int],
                     spark: SparkSession,
                     memory: Option[Boolean],
-                    k: Int,
+                    runBiMax: Boolean,
                     kse: Double,
                     name: String,
                     writeJsonSchema: Boolean,
@@ -43,17 +43,6 @@ object CMDLineParser {
       case _ | None => None
     }
 
-
-    val k: Int = argMap.get("k") match {
-      case Some(s) =>
-        try {
-          s.toInt
-        } catch {
-          case e: Exception => throw new Exception("Make sure val is an integer in the form -k 7")
-        }
-      case _ | None => 0
-    }
-
     val kse: Double = argMap.get("kse") match {
       case Some(s) =>
         try {
@@ -64,13 +53,13 @@ object CMDLineParser {
       case _ | None => 0.0
     }
 
-    val testMode: Boolean = argMap.get("testMode") match {
+    val writeJsonSchema: Boolean = argMap.get("schema") match {
       case Some("true" | "t" | "y" | "yes") => true
-      case Some("n" | "no" | "false") => false
-      case _ | None => false
+      case Some("n" | "no" | "false" | "f") => false
+      case _ | None => true
     }
 
-    val writeJsonSchema: Boolean = argMap.get("schema") match {
+    val runBiMax: Boolean = argMap.get("bimax") match {
       case Some("true" | "t" | "y" | "yes") => true
       case Some("n" | "no" | "false" | "f") => false
       case _ | None => true
@@ -106,7 +95,7 @@ object CMDLineParser {
 
     val (train, validation) = split(spark, filename, trainPercent, validationSize, seed, numberOfRows)
 
-    return config(filename, logFileName, train, trainPercent, validationSize, seed, spark, memory, k, kse,spark.conf.get("name").toString, writeJsonSchema, argMap)
+    return config(filename, logFileName, train, trainPercent, validationSize, seed, spark, memory, runBiMax, kse,spark.conf.get("name").toString, writeJsonSchema, argMap)
   }
 
 
