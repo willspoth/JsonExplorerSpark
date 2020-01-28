@@ -1,7 +1,7 @@
 package Optimizer
 
-import Explorer.{Attribute, AttributeTree, JE_Array, JE_Empty_Array, JE_Empty_Object, JE_Null, JE_Obj_Array, JE_Object, JE_Tuple, JE_Var_Object, JsonExplorerType, Types}
-import Explorer.Types.AttributeName
+import Explorer.{Attribute, AttributeTree, GenericTree, JE_Array, JE_Empty_Array, JE_Empty_Object, JE_Null, JE_Obj_Array, JE_Object, JE_Tuple, JE_Var_Object, JsonExplorerType, Star, Types}
+import Explorer.Types.{AttributeName, BiMaxNode}
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -113,6 +113,30 @@ object RewriteAttributes {
 
   }
 
+  def GenericListToGenericTree[T](list: Array[(AttributeName,T)]): GenericTree[T] = {
+    val gTree: GenericTree[T] = new GenericTree[T]("$",mutable.HashMap[Any,GenericTree[T]](), null.asInstanceOf[T])
+
+    list.foreach{case(name, v) => {
+      if(name.isEmpty) // root
+        gTree.payload = v
+      else {
+        val last = name.foldLeft(gTree: GenericTree[T]){ case(at, n) => {
+          at.children.get(n) match {
+            case Some(at2) => at2
+            case None =>
+              val at2 = new GenericTree[T](n,mutable.HashMap[Any,GenericTree[T]](),null.asInstanceOf[T])
+              at.children.put(n,at2)
+              at2
+          }
+        }}
+        last.payload = v
+        last
+      }
+    }}
+
+    gTree
+  }
+
 
   def attributeListToAttributeTree(attributeList: Array[(AttributeName,Attribute)]
                                   ): AttributeTree =
@@ -140,12 +164,56 @@ object RewriteAttributes {
     attributeTree
   }
 
+//  def nullOut[T](left: T, right: T, merge: (T,T) => T = {throw new Exception("Unimplemented merge called")}): T = {
+//    if(left == null && right == null){
+//      return left
+//    } else if (left == null){
+//      return right
+//    } else if (right == null){
+//      return left
+//    } else {
+//      return merge(left,right)
+//    }
+//  }
+//
+//  def mergeAttributes(a1: Attribute, a2: Attribute): Attribute = {
+//    if (a1.name != a2.name)
+//      throw new Exception("merging attribute trees with different names")
+//
+//    new Attribute(
+//      a1.name,
+//      nullOut[scala.collection.mutable.Set[JsonExplorerType]](a1.`type`, a2.`type`,(x:scala.collection.mutable.Set[JsonExplorerType],y:scala.collection.mutable.Set[JsonExplorerType])=>x++y),
+//
+//      a1.multiplicity + a2.multiplicity
+//    )
+//  }
+//
+//  def mergeAttributeTrees(t1: AttributeTree, t2: AttributeTree): AttributeTree = {
+//    if(t1.name != t2.name)
+//      throw new Exception("merging attribute trees with different names")
+//    val mergedAttributes = mergeAttributes(t1.attribute,t2.attribute)
+//    val mergedChildren = new mutable.HashMap[Any,AttributeTree]()
+//    t1.children.foreach(x => mergedChildren.put(x._1,x._2))
+//    t2.children.foreach(x => mergedChildren.put(x._1,x._2))
+//    return new AttributeTree(t1.name,mergedChildren,mergedAttributes)
+//  }
+
   def attributeTreeToAttributeMap(attributeTree: AttributeTree): mutable.HashMap[AttributeName,Attribute] = {
     val attributeMap = mutable.HashMap[AttributeName,Attribute]()
     def explode(attributeTree: AttributeTree): Unit = {
       if(attributeTree.attribute != null) {
         attributeMap.put(attributeTree.attribute.name, attributeTree.attribute)
       }
+//      // check children for names with numbers and coalesce them
+//      val arrayChildren: AttributeTree = new AttributeTree( // merge children that are array elements
+//        Star,
+//        attributeTree.children.filter(_._1.isInstanceOf[Int]).foldLeft(mutable.HashMap[Any,AttributeTree]()){case(children,v) => {
+//          v._2.children.foreach(x => children.put(x._1,x._2))
+//          children
+//        }}, // combine all children
+//        attributeTree.children.filter(_._1.isInstanceOf[Int]).foldLeft(new Attribute()){case(attr_acc,v) => {attr_acc}}
+//      )
+//      explode(arrayChildren)
       attributeTree.children.foreach(x => explode(x._2))
     }
     explode(attributeTree)
@@ -171,14 +239,14 @@ object RewriteAttributes {
     attributeTree.children.foreach(x => getSchemas(x._2, schemas))
   }
 
-  def pickFromTree(attributeName: AttributeName, attributeTree: AttributeTree, currentName: AttributeName = ListBuffer[Any]()): AttributeTree = {
+  def pickFromTree[T](attributeName: AttributeName, tree: GenericTree[T], currentName: AttributeName = ListBuffer[Any]()): GenericTree[T] = {
     if(attributeName.isEmpty)
-      return attributeTree
+      return tree
     else { // need to navigate to right location because q.q
       if (currentName.equals(attributeName))
-        return attributeTree
+        return tree
       else
-        return pickFromTree(attributeName,attributeTree.children.get(attributeName(currentName.size)).get,currentName ++ List(attributeName(currentName.size)))
+        return pickFromTree(attributeName,tree.children.get(attributeName(currentName.size)).get,currentName ++ List(attributeName(currentName.size)))
     }
   }
 

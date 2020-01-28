@@ -5,6 +5,7 @@ import java.util.Calendar
 
 import Explorer.Types.BiMaxNode
 import org.apache.spark.rdd.RDD
+import util.NodeToJsonSchema
 
 //import BiMax.OurBiMax
 import Explorer.Types.AttributeName
@@ -97,15 +98,31 @@ object SparkMain {
 
     val attributeMap = RewriteAttributes.attributeTreeToAttributeMap(attributeTree)
 
+
+    if(false) {
+      // write csv of entropy for graphs
+      val entropyWriter = new PrintWriter(new File(config.logFileName + ".entropy"))
+      entropyWriter.write("name,object_kse,object_te\n")
+      entropyWriter.write(attributeMap.map { case (name, attribute) => {
+        attribute.objectMarginalKeySpaceEntropy match {
+          case Some(v) => List("\"" + Types.nameToString(name) + "\"", attribute.objectMarginalKeySpaceEntropy.get.toString, attribute.objectTypeEntropy.get.toString)
+          case None => List()
+        }
+      }
+      }.filter(_.nonEmpty).map(_.mkString(",")).mkString("\n"))
+      entropyWriter.close()
+      ???
+    }
+
     val variableObjects: Set[AttributeName] = attributeMap.filter(x=> !x._1.isEmpty && attributeMap.get(x._1).get.`type`.contains(JE_Var_Object)).map(_._1).toSet
 
     val RewriteTime = System.currentTimeMillis() // End Timer
     val RewriteRunTime = RewriteTime - extractionRunTime
 
     // create feature vectors, currently should work if schemas generated from subset of training data
-    val featureVectors: RDD[(AttributeName,Either[mutable.HashMap[Map[AttributeName,mutable.Set[JsonExplorerType]],Int],mutable.HashMap[AttributeName,(mutable.Set[JsonExplorerType],Int)]])] =
+    val featureVectors: Array[(AttributeName,Either[mutable.HashMap[Map[AttributeName,mutable.Set[JsonExplorerType]],Int],mutable.HashMap[AttributeName,(mutable.Set[JsonExplorerType],Int)]])] =
       shreddedRecords.flatMap(FeatureVectors.create(schemas.map(_._1).filterNot(_.isEmpty),_))
-        .combineByKey(x => FeatureVectors.createCombiner(variableObjects,x),FeatureVectors.mergeValue,FeatureVectors.mergeCombiners)
+        .combineByKey(x => FeatureVectors.createCombiner(variableObjects,x),FeatureVectors.mergeValue,FeatureVectors.mergeCombiners).collect()
 
 
     val fvTime = System.currentTimeMillis()
@@ -128,9 +145,11 @@ object SparkMain {
         }
 
       })
-        .map(x => if (x._3) (x._1,BiMax.OurBiMax2.rewrite(x._2)) else (x._1,x._2)).collect().toMap
+        .map(x => if (x._3) (x._1,BiMax.OurBiMax2.rewrite(x._2)) else (x._1,x._2)).toMap
 
-      val JsonSchema: util.JsonSchema.JSS = util.NodeToJsonSchema.biMaxToJsonSchema(rawSchemas, attributeMap)
+      // combine subset types for each attribute
+      val mergedSchemas = rawSchemas.map{case(name,djn) => (name,djn.map(bms => bms.map(NodeToJsonSchema.biMaxNodeTypeMerger(_))))}
+      val JsonSchema: util.JsonSchema.JSS = util.NodeToJsonSchema.biMaxToJsonSchema(mergedSchemas)
       algorithmSchema = JsonSchema.toString  + "\n"
     } else {
 
@@ -147,9 +166,9 @@ object SparkMain {
         }
 
       })
-        .map(x => (x._1, x._2)).collect().toMap
+        .map(x => (x._1, x._2)).toMap
 
-      algorithmSchema = util.NodeToJsonSchema.biMaxToJsonSchema(onlySubset, attributeMap).toString  + "\n"
+      //TODO algorithmSchema = util.NodeToJsonSchema.biMaxToJsonSchema(onlySubset, attributeMap).toString  + "\n"
     }
 
     val endTime = System.currentTimeMillis() // End Timer

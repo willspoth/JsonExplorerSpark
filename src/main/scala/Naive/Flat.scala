@@ -45,9 +45,9 @@ object Flat {
     )
 
     val m = mutable.HashMap[AttributeName,Attribute](flattenedAttributes: _*)
-    val JsonSchema: util.JsonSchema.JSS = util.NodeToJsonSchema.biMaxToJsonSchema(root, m)
-    val JsonSchemaString = JsonSchema.toString
-    println(JsonSchemaString)
+    //val JsonSchema: util.JsonSchema.JSS = util.NodeToJsonSchema.biMaxToJsonSchema(root, m)
+    //val JsonSchemaString = JsonSchema.toString
+    //println(JsonSchemaString)
   }
 
 

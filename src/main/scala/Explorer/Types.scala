@@ -98,6 +98,8 @@ object Attribute {
 
 class AttributeTree(var name: Any, var children: mutable.HashMap[Any,AttributeTree], var attribute: Attribute)
 
+class GenericTree[T](var name: Any, var children: mutable.HashMap[Any,GenericTree[T]], var payload: T)
+
 
 case object JE_String extends JsonExplorerType
 case object JE_Numeric extends JsonExplorerType
@@ -505,6 +507,7 @@ object Types {
 
 
   case class BiMaxNode(schema: Set[AttributeName], types: Map[AttributeName,mutable.Set[JsonExplorerType]], multiplicity: Int, subsets: mutable.ListBuffer[(Map[AttributeName,mutable.Set[JsonExplorerType]],Int)])
+  case class BiMaxNodelet(name: AttributeName, `type`: mutable.Set[JsonExplorerType], multiplicity: Int)
   type BiMaxStruct = mutable.Seq[BiMaxNode]
   type DisjointNodes = mutable.Seq[BiMaxStruct]
 }
