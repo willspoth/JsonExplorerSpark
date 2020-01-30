@@ -114,7 +114,9 @@ object SparkMain {
       ???
     }
 
-    val variableObjects: Set[AttributeName] = attributeMap.filter(x=> !x._1.isEmpty && attributeMap.get(x._1).get.`type`.contains(JE_Var_Object)).map(_._1).toSet
+    val variableObjects: Set[AttributeName] = attributeMap.filter(x=> !x._1.isEmpty && attributeMap.get(x._1).get.`type`.contains(JE_Var_Object)).map(_._1)
+      .map(x => x.map(y => if(y.isInstanceOf[Int]) Star else y))
+      .toSet
 
     val RewriteTime = System.currentTimeMillis() // End Timer
     val RewriteRunTime = RewriteTime - extractionRunTime
@@ -149,8 +151,27 @@ object SparkMain {
 
       // combine subset types for each attribute
       val mergedSchemas = rawSchemas.map{case(name,djn) => (name,djn.map(bms => bms.map(NodeToJsonSchema.biMaxNodeTypeMerger(_))))}
-      val variableObjWithMult = variableObjects.map(x => (x,mergedSchemas.flatMap(djn => djn._2.flatMap(y => y.map(z => if(z.subsets.nonEmpty) z.subsets.map(sub => if (sub._1.contains(x)) sub._2 else 0).reduce(_+_) else 0))).reduce(_+_))).toMap
-      val JsonSchema: util.JsonSchema.JSS = util.NodeToJsonSchema.biMaxToJsonSchema(mergedSchemas)
+
+      val variableObjWithMult: Map[AttributeName,(mutable.Set[JsonExplorerType],Int)] = variableObjects
+        //.filter(_.equals(mutable.ListBuffer("signatures")))
+        .map(varObjName => {val m = mergedSchemas
+        .map(djn => { val d = djn._2
+        .flatMap(possibleSchemas => possibleSchemas
+          .map(z => {
+            val first = if (z.multiplicity > 0) z.types.get(varObjName) match {case Some(v) => (v,z.multiplicity) case None => (mutable.Set[JsonExplorerType](),0)} else (mutable.Set[JsonExplorerType](),0)
+            val sec = if(z.subsets.nonEmpty) z.subsets.map(sub => if (sub._1.contains(varObjName)) (sub._1.get(varObjName).get,sub._2) else (mutable.Set[JsonExplorerType](),0)).reduce((l:(mutable.Set[JsonExplorerType],Int),r:(mutable.Set[JsonExplorerType],Int)) => (l._1 ++ r._1, l._2 + r._2))
+            else (mutable.Set[JsonExplorerType](),0)
+            (first._1 ++ sec._1,first._2+sec._2)
+          })
+        )
+        d
+    })
+
+        (varObjName,m.flatten.reduce((l,r) => (l._1 ++ r._1, l._2 + r._2)))
+      }).toMap
+
+
+      val JsonSchema: util.JsonSchema.JSS = util.NodeToJsonSchema.biMaxToJsonSchema(mergedSchemas,variableObjWithMult)
       algorithmSchema = JsonSchema.toString  + "\n"
     } else {
 

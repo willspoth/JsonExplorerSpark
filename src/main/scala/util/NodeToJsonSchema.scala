@@ -33,17 +33,25 @@ object NodeToJsonSchema {
 
 
 
-  private def biMaxNodeToTree(biMaxNode: BiMaxNode, attributeName: AttributeName): GenericTree[BiMaxNodelet] = {
+  private def biMaxNodeToTree(biMaxNode: BiMaxNode, attributeName: AttributeName, variableObjWithMult: Map[AttributeName,(mutable.Set[JsonExplorerType],Int)]): GenericTree[BiMaxNodelet] = {
 
-    val attributeCounts: Map[AttributeName, Int] = (mutable.ListBuffer((biMaxNode.types,biMaxNode.multiplicity)) ++ biMaxNode.subsets)
+    val l =
+      if(variableObjWithMult.contains(attributeName))
+        (mutable.ListBuffer( (Map((attributeName,(variableObjWithMult.get(attributeName).get._1 ++ mutable.Set(JE_Var_Object)))),variableObjWithMult.get(attributeName).get._2),(biMaxNode.types,biMaxNode.multiplicity)) ++ biMaxNode.subsets)
+      else
+        (mutable.ListBuffer((biMaxNode.types,biMaxNode.multiplicity)) ++ biMaxNode.subsets)
+
+    val attributeCounts: Map[AttributeName, Int] = l
       .flatMap{case(map,mult) => {
         map.toList.map(x => Tuple2(x._1,mult))
-      }}.groupBy(_._1).map(x => (x._1,x._2.map(_._2).reduce(_+_))).toMap
+      }}.groupBy(_._1).map(x => (x._1,x._2.map(_._2).reduce(_+_)))
 
-    val gTree = RewriteAttributes.GenericListToGenericTree[BiMaxNodelet](biMaxNode.schema.toArray
+
+
+    val gTree = RewriteAttributes.GenericListToGenericTree[BiMaxNodelet](attributeCounts.toArray.map(_._1)
       .map(x => (x,
         BiMaxNodelet(x,
-          biMaxNode.types.get(x).get,
+          biMaxNode.types.get(x) match {case Some(t) => t case None => {variableObjWithMult.get(attributeName) match {case Some(n) => (n._1++ mutable.Set(JE_Var_Object)) case None => throw new Exception("idk")}}},
           attributeCounts.get(x).get
         )
       ))
@@ -57,12 +65,13 @@ object NodeToJsonSchema {
                               SpecialSchemas: Map[AttributeName,Types.DisjointNodes],
                               parentMult: Int,
                               attributeName: AttributeName,
-                              pastPayload: BiMaxNodelet
+                              pastPayload: BiMaxNodelet,
+                              variableObjWithMult: Map[AttributeName,(mutable.Set[JsonExplorerType],Int)]
                             ): JSS = {
 
     SpecialSchemas.get(attributeName) match {
       case Some(djn) =>
-        makeBiMaxJsonSchema(djn,SpecialSchemas-attributeName, attributeName, tree.payload)
+        makeBiMaxJsonSchema(djn,SpecialSchemas-attributeName, attributeName, tree.payload, variableObjWithMult)
       case None =>
         // clean types
 
@@ -83,7 +92,8 @@ object NodeToJsonSchema {
                 SpecialSchemas,
                 payload.multiplicity,
                 payload.name ++ List(x._1),
-                payload
+                payload,
+                variableObjWithMult
               ))).toMap
             ))
           }
@@ -94,7 +104,8 @@ object NodeToJsonSchema {
               SpecialSchemas,
               payload.multiplicity,
               payload.name ++ List(x._1),
-              payload
+              payload,
+              variableObjWithMult
             )).toSeq
 
             val item: JSS = if (items.size > 1) JSS(Seq(JSA_oneOf(items))) else items.head
@@ -137,7 +148,8 @@ object NodeToJsonSchema {
               SpecialSchemas,
               payload.multiplicity,
               payload.name ++ List(x._1),
-              payload
+              payload,
+              variableObjWithMult
             )).toSeq
 
             val item: JSS = if (items.size > 1) JSS(Seq(JSA_oneOf(items))) else items.head
@@ -168,15 +180,17 @@ object NodeToJsonSchema {
   private def makeBiMaxJsonSchema(disjointNodes: Types.DisjointNodes,
                                   SpecialSchemas: Map[AttributeName,Types.DisjointNodes],
                                   attributeName: AttributeName,
-                                  pastPayload: BiMaxNodelet
+                                  pastPayload: BiMaxNodelet,
+                                  variableObjWithMult: Map[AttributeName,(mutable.Set[JsonExplorerType],Int)]
                                  ): JSS = {
     def shred(biMaxNode: BiMaxNode): JSS = {
       attributeToJSS(
-        biMaxNodeToTree(biMaxNode, attributeName),
+        biMaxNodeToTree(biMaxNode, attributeName,variableObjWithMult),
         SpecialSchemas,
         biMaxNode.multiplicity,
         attributeName,
-        pastPayload
+        pastPayload,
+        variableObjWithMult
       )
     }
 
@@ -189,10 +203,10 @@ object NodeToJsonSchema {
     else return anyOf.head
   }
 
-  def biMaxToJsonSchema(SpecialSchemas: Map[AttributeName,Types.DisjointNodes]): JSS = {
+  def biMaxToJsonSchema(SpecialSchemas: Map[AttributeName,Types.DisjointNodes],variableObjWithMult: Map[AttributeName,(mutable.Set[JsonExplorerType],Int)]): JSS = {
     // SpecialSchemas is a map of split schemas, this is split on variable_objects and arrays of objects, these should be incorporated back into the schema
     val root = SpecialSchemas.get(mutable.ListBuffer[Any]()).get
-    makeBiMaxJsonSchema(root,SpecialSchemas - mutable.ListBuffer[Any](), ListBuffer[Any](), null)
+    makeBiMaxJsonSchema(root,SpecialSchemas - mutable.ListBuffer[Any](), ListBuffer[Any](), null, variableObjWithMult)
   }
 
 }
