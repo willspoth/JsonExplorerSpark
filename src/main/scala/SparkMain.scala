@@ -149,6 +149,7 @@ object SparkMain {
 
       // combine subset types for each attribute
       val mergedSchemas = rawSchemas.map{case(name,djn) => (name,djn.map(bms => bms.map(NodeToJsonSchema.biMaxNodeTypeMerger(_))))}
+      val variableObjWithMult = variableObjects.map(x => (x,mergedSchemas.flatMap(djn => djn._2.flatMap(y => y.map(z => if(z.subsets.nonEmpty) z.subsets.map(sub => if (sub._1.contains(x)) sub._2 else 0).reduce(_+_) else 0))).reduce(_+_))).toMap
       val JsonSchema: util.JsonSchema.JSS = util.NodeToJsonSchema.biMaxToJsonSchema(mergedSchemas)
       algorithmSchema = JsonSchema.toString  + "\n"
     } else {

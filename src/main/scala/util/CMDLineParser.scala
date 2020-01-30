@@ -67,7 +67,7 @@ object CMDLineParser {
 
     val logFileName: String = argMap.get("log") match {
       case Some(s) => s
-      case _ | None => filename.split("/").last.split("-").head+".USlog"
+      case _ | None => (new java.io.File(filename)).getName.split("-").head+".USlog"
     }
 
     val seed: Option[Int] = argMap.get("seed") match {

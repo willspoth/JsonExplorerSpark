@@ -61,7 +61,8 @@ object NodeToJsonSchema {
                             ): JSS = {
 
     SpecialSchemas.get(attributeName) match {
-      case Some(djn) => makeBiMaxJsonSchema(djn,SpecialSchemas-attributeName, attributeName, tree.payload)
+      case Some(djn) =>
+        makeBiMaxJsonSchema(djn,SpecialSchemas-attributeName, attributeName, tree.payload)
       case None =>
         // clean types
 
