@@ -1,7 +1,7 @@
 package util
 
 import Explorer.{Attribute, AttributeTree, GenericTree, JE_Array, JE_Empty_Array, JE_Empty_Object, JE_Obj_Array, JE_Object, JE_Var_Object, JsonExplorerType, Types}
-import Explorer.Types.{AttributeName, BiMaxNode, BiMaxNodelet, BiMaxStruct}
+import Explorer.Types.{AttributeName, BiMaxNode, AttributeNodelet, BiMaxStruct}
 import Optimizer.RewriteAttributes
 import util.JsonSchema.{JSA_additionalProperties, JSA_anyOf, JSA_description, JSA_items, JSA_maxItems, JSA_maxProperties, JSA_oneOf, JSA_properties, JSA_required, JSA_type, JSS, JsonSchemaStructure}
 
@@ -33,7 +33,7 @@ object NodeToJsonSchema {
 
 
 
-  private def biMaxNodeToTree(biMaxNode: BiMaxNode, attributeName: AttributeName, variableObjWithMult: Map[AttributeName,(mutable.Set[JsonExplorerType],Int)]): GenericTree[BiMaxNodelet] = {
+  private def biMaxNodeToTree(biMaxNode: BiMaxNode, attributeName: AttributeName, variableObjWithMult: Map[AttributeName,(mutable.Set[JsonExplorerType],Int)]): GenericTree[AttributeNodelet] = {
 
     val l =
       if(variableObjWithMult.contains(attributeName))
@@ -48,9 +48,9 @@ object NodeToJsonSchema {
 
 
 
-    val gTree = RewriteAttributes.GenericListToGenericTree[BiMaxNodelet](attributeCounts.toArray.map(_._1)
+    val gTree = RewriteAttributes.GenericListToGenericTree[AttributeNodelet](attributeCounts.toArray.map(_._1)
       .map(x => (x,
-        BiMaxNodelet(x,
+        AttributeNodelet(x,
           biMaxNode.types.get(x) match {case Some(t) => t case None => {variableObjWithMult.get(attributeName) match {case Some(n) => (n._1++ mutable.Set(JE_Var_Object)) case None => throw new Exception("idk")}}},
           attributeCounts.get(x).get
         )
@@ -61,11 +61,11 @@ object NodeToJsonSchema {
   }
 
   private def attributeToJSS(
-                              tree: GenericTree[BiMaxNodelet],
+                              tree: GenericTree[AttributeNodelet],
                               SpecialSchemas: Map[AttributeName,Types.DisjointNodes],
                               parentMult: Int,
                               attributeName: AttributeName,
-                              pastPayload: BiMaxNodelet,
+                              pastPayload: AttributeNodelet,
                               variableObjWithMult: Map[AttributeName,(mutable.Set[JsonExplorerType],Int)]
                             ): JSS = {
 
@@ -75,7 +75,7 @@ object NodeToJsonSchema {
       case None =>
         // clean types
 
-        var payload: BiMaxNodelet = tree.payload
+        var payload: AttributeNodelet = tree.payload
         if(tree.payload == null)
           payload = pastPayload
 
@@ -115,24 +115,24 @@ object NodeToJsonSchema {
           }
 
           // embed entropy for debugging
-//          val description: String = {
-//            List(
-//              attribute.objectTypeEntropy match {
-//                case Some(v) => "ObjectTypeEntropy:" + v.toString
-//                case None => ""
-//              },
-//              attribute.objectMarginalKeySpaceEntropy match {
-//                case Some(v) => "ObjectMarginalKeySpaceEntropy:" + v.toString
-//                case None => ""
-//              },
-//              attribute.objectJointKeySpaceEntropy match {
-//                case Some(v) => "ObjectJointKeySpaceEntropy:" + v.toString
-//                case None => ""
-//              }
-//            ).filter(!_.equals("")).mkString(",")
-//          }
-//
-//          if (description.size > 0) seq.append(JSA_description(description))
+          //          val description: String = {
+          //            List(
+          //              attribute.objectTypeEntropy match {
+          //                case Some(v) => "ObjectTypeEntropy:" + v.toString
+          //                case None => ""
+          //              },
+          //              attribute.objectMarginalKeySpaceEntropy match {
+          //                case Some(v) => "ObjectMarginalKeySpaceEntropy:" + v.toString
+          //                case None => ""
+          //              },
+          //              attribute.objectJointKeySpaceEntropy match {
+          //                case Some(v) => "ObjectJointKeySpaceEntropy:" + v.toString
+          //                case None => ""
+          //              }
+          //            ).filter(!_.equals("")).mkString(",")
+          //          }
+          //
+          //          if (description.size > 0) seq.append(JSA_description(description))
 
           // check for empty arrays
           if (t.getType().equals(JE_Empty_Object)) seq.append(JSA_maxProperties(0.0))
@@ -177,10 +177,11 @@ object NodeToJsonSchema {
     }
   }
 
+
   private def makeBiMaxJsonSchema(disjointNodes: Types.DisjointNodes,
                                   SpecialSchemas: Map[AttributeName,Types.DisjointNodes],
                                   attributeName: AttributeName,
-                                  pastPayload: BiMaxNodelet,
+                                  pastPayload: AttributeNodelet,
                                   variableObjWithMult: Map[AttributeName,(mutable.Set[JsonExplorerType],Int)]
                                  ): JSS = {
     def shred(biMaxNode: BiMaxNode): JSS = {
@@ -200,7 +201,8 @@ object NodeToJsonSchema {
         anyOf
       )))
     }
-    else return anyOf.head
+    else if (anyOf.size == 1) return anyOf.head
+    else ???
   }
 
   def biMaxToJsonSchema(SpecialSchemas: Map[AttributeName,Types.DisjointNodes],variableObjWithMult: Map[AttributeName,(mutable.Set[JsonExplorerType],Int)]): JSS = {

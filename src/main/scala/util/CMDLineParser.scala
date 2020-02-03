@@ -9,6 +9,11 @@ import scala.io.Source
 
 object CMDLineParser {
 
+  trait MergeAlgorithm
+  case object BiMax extends MergeAlgorithm
+  case object Subset extends MergeAlgorithm
+  case object Verbose extends MergeAlgorithm
+
   case class config(fileName: String,
                     logFileName: String,
                     train: RDD[String],
@@ -17,7 +22,7 @@ object CMDLineParser {
                     seed: Option[Int],
                     spark: SparkSession,
                     memory: Option[Boolean],
-                    runBiMax: Boolean,
+                    runBiMax: MergeAlgorithm,
                     kse: Double,
                     name: String,
                     writeJsonSchema: Boolean,
@@ -59,10 +64,11 @@ object CMDLineParser {
       case _ | None => true
     }
 
-    val runBiMax: Boolean = argMap.get("bimax") match {
-      case Some("true" | "t" | "y" | "yes") => true
-      case Some("n" | "no" | "false" | "f") => false
-      case _ | None => true
+    val runBiMax: MergeAlgorithm = argMap.get("merge") match {
+      case Some("bimax") => BiMax
+      case Some("verbose") => Verbose
+      case Some("subset") => Subset
+      case _ | None => BiMax
     }
 
     val logFileName: String = argMap.get("log") match {

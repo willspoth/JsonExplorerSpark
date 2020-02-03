@@ -3,7 +3,7 @@ package JsonExplorer
 import java.io._
 import java.util.Calendar
 
-import Explorer.Types.BiMaxNode
+import Explorer.Types.{BiMaxNode, BiMaxStruct, DisjointNodes}
 import org.apache.spark.rdd.RDD
 import util.NodeToJsonSchema
 
@@ -132,7 +132,7 @@ object SparkMain {
 
     var algorithmSchema = ""
 
-    if(config.runBiMax){
+    if(config.runBiMax.equals(CMDLineParser.BiMax)){
 
       // BiMax algorithm
       val rawSchemas: Map[AttributeName,Types.DisjointNodes] = featureVectors.map(x => {
@@ -153,7 +153,6 @@ object SparkMain {
       val mergedSchemas = rawSchemas.map{case(name,djn) => (name,djn.map(bms => bms.map(NodeToJsonSchema.biMaxNodeTypeMerger(_))))}
 
       val variableObjWithMult: Map[AttributeName,(mutable.Set[JsonExplorerType],Int)] = variableObjects
-        //.filter(_.equals(mutable.ListBuffer("signatures")))
         .map(varObjName => {val m = mergedSchemas
         .map(djn => { val d = djn._2
         .flatMap(possibleSchemas => possibleSchemas
@@ -173,7 +172,7 @@ object SparkMain {
 
       val JsonSchema: util.JsonSchema.JSS = util.NodeToJsonSchema.biMaxToJsonSchema(mergedSchemas,variableObjWithMult)
       algorithmSchema = JsonSchema.toString  + "\n"
-    } else {
+    } else if(config.runBiMax.equals(CMDLineParser.Subset)) {
 
       // onlySubSet test
       val onlySubset: Map[AttributeName, Types.DisjointNodes] = featureVectors.map(x => {
@@ -191,7 +190,53 @@ object SparkMain {
         .map(x => (x._1, x._2)).toMap
 
       //TODO algorithmSchema = util.NodeToJsonSchema.biMaxToJsonSchema(onlySubset, attributeMap).toString  + "\n"
+    } else if(config.runBiMax.equals(CMDLineParser.Verbose)){
+      val rawSchemas: Map[AttributeName,Types.DisjointNodes] = featureVectors.map(x => {
+        x._2 match {
+          case Left(l) =>
+            (x._1,
+              mutable.Seq[BiMaxStruct](l.map(x => BiMaxNode(
+                x._1.map(_._1).toSet,
+                x._1,
+                x._2,
+                mutable.ListBuffer[(Map[AttributeName,mutable.Set[JsonExplorerType]],Int)]()
+              )).toSeq.to[mutable.Seq]
+              )
+            )
+
+          case Right(r) =>
+            (x._1,
+              mutable.Seq(mutable.Seq(
+                BiMaxNode(Set[AttributeName](),Map[AttributeName,mutable.Set[JsonExplorerType]](),0,r.map(x => (Map[AttributeName,mutable.Set[JsonExplorerType]]((x._1,x._2._1)),x._2._2)).toList.to[mutable.ListBuffer])
+              )) // don't do bimax on var_objects
+            )
+        }
+
+      }).toMap
+
+      val variableObjWithMult: Map[AttributeName,(mutable.Set[JsonExplorerType],Int)] = variableObjects
+        .map(varObjName => {val m = rawSchemas
+          .map(djn => { val d = djn._2
+            .flatMap(possibleSchemas => possibleSchemas
+              .map(z => {
+                val first = if (z.multiplicity > 0) z.types.get(varObjName) match {case Some(v) => (v,z.multiplicity) case None => (mutable.Set[JsonExplorerType](),0)} else (mutable.Set[JsonExplorerType](),0)
+                val sec = if(z.subsets.nonEmpty) z.subsets.map(sub => if (sub._1.contains(varObjName)) (sub._1.get(varObjName).get,sub._2) else (mutable.Set[JsonExplorerType](),0)).reduce((l:(mutable.Set[JsonExplorerType],Int),r:(mutable.Set[JsonExplorerType],Int)) => (l._1 ++ r._1, l._2 + r._2))
+                else (mutable.Set[JsonExplorerType](),0)
+                (first._1 ++ sec._1,first._2+sec._2)
+              })
+            )
+            d
+          })
+
+          (varObjName,m.flatten.reduce((l,r) => (l._1 ++ r._1, l._2 + r._2)))
+        }).toMap
+
+      val JsonSchema: util.JsonSchema.JSS = util.NodeToJsonSchema.biMaxToJsonSchema(rawSchemas,variableObjWithMult)
+      algorithmSchema = JsonSchema.toString  + "\n"
+    } else {
+      throw new Exception("Unknown Merge algorithm choice")
     }
+
 
     val endTime = System.currentTimeMillis() // End Timer
 
@@ -202,7 +247,7 @@ object SparkMain {
     log += LogOutput("TotalTime",(endTime - startTime).toString,"Total execution time: ", " ms")
     log += LogOutput("TrainPercent",config.trainPercent.toString,"TrainPercent: ")
     log += LogOutput("ValidationSize",config.validationSize.toString,"ValidationSize: ")
-    log += LogOutput("Algorithm",if(config.runBiMax) "BiMax" else "Subset","Algorithm: ")
+    log += LogOutput("Algorithm",if(config.runBiMax.equals(CMDLineParser.BiMax)) "bimax" else if(config.runBiMax.equals(CMDLineParser.Subset)) "subset" else if(config.runBiMax.equals(CMDLineParser.Verbose)) "verbose" else "unknown","Algorithm: ")
     log += LogOutput("Seed",config.seed match {
       case Some(i) => i.toString
       case None => "None"},"Seed: ")

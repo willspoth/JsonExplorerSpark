@@ -507,7 +507,7 @@ object Types {
 
 
   case class BiMaxNode(schema: Set[AttributeName], types: Map[AttributeName,mutable.Set[JsonExplorerType]], multiplicity: Int, subsets: mutable.ListBuffer[(Map[AttributeName,mutable.Set[JsonExplorerType]],Int)])
-  case class BiMaxNodelet(name: AttributeName, `type`: mutable.Set[JsonExplorerType], multiplicity: Int)
+  case class AttributeNodelet(name: AttributeName, `type`: mutable.Set[JsonExplorerType], multiplicity: Int)
   type BiMaxStruct = mutable.Seq[BiMaxNode]
   type DisjointNodes = mutable.Seq[BiMaxStruct]
 }
