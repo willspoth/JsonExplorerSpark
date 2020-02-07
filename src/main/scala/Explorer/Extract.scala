@@ -7,6 +7,8 @@ import scala.collection.mutable.ListBuffer
 /** Used with flatMap and combineByKey to output all possible rows in JET form with the number of times it occurred
   *
   */
+
+//TODO doesn't need to copy type into new structure
 object Extract {
   def ExtractAttributes(row: JsonExplorerType): ListBuffer[(AttributeName,JsonExplorerType)] = {
     val flatMap: ListBuffer[(AttributeName,JsonExplorerType)] = ListBuffer[(AttributeName,JsonExplorerType)]()

@@ -45,23 +45,11 @@ object SparkMain {
 
     val startTime = System.currentTimeMillis() // Start timer
 
-
     /*
       Shred the input file into JsonExplorerTypes while keeping the JSON tree structure.
       This can then be parsed in the feature vector creation phase without having to re-read the input file.
      */
-    val shreddedRecords = config.train.mapPartitions(x=>JacksonShredder.shred(x))
-
-
-//    // for storage comparison
-//    config.memory match {
-//      case Some(inmemory) =>
-//        if(inmemory)
-//          shreddedRecords.persist(StorageLevel.MEMORY_ONLY)
-//        else
-//          shreddedRecords.persist(StorageLevel.DISK_ONLY)
-//      case None => // don't cache at all
-//    }
+    val shreddedRecords: RDD[JsonExplorerType] = RunExplorer.shredRecords(config.train)
 
     /*
       Preform the extraction phase:
@@ -70,21 +58,13 @@ object SparkMain {
         - This can then be converted into key-space and type entropy
      */
 
-    val extractedAttributes: Array[(AttributeName,Attribute)] = shreddedRecords
-      .flatMap(Extract.ExtractAttributes(_))
-      .combineByKey(Extract.createCombiner,Extract.mergeValue,Extract.mergeCombiners)
-      .map{case(n,t) => {
-        (n,Attribute(n,t))
-      }}.collect()
+    val extractedAttributes: Array[(AttributeName,Attribute)] = RunExplorer.extractTypeStructure(shreddedRecords)
 
 
     val extractionTime = System.currentTimeMillis()
     val extractionRunTime = extractionTime - startTime
 
-    val attributeTree: AttributeTree = RewriteAttributes.attributeListToAttributeTree(extractedAttributes)
-
-    // set objectKeySpaceThreshold to 0.0 to disable var_objects
-    RewriteAttributes.rewriteSemanticTypes(attributeTree, config.kse,0.0,1.0)
+    val attributeTree: AttributeTree = RunExplorer.applyTypeCorrection(extractedAttributes, config.kse)
 
     // TODO check type entropy, might be a bit screwy since it was negative
     // get schemas to break on
@@ -113,6 +93,8 @@ object SparkMain {
       entropyWriter.close()
       ???
     }
+
+    ???
 
     val variableObjects: Set[AttributeName] = attributeMap.filter(x=> !x._1.isEmpty && attributeMap.get(x._1).get.`type`.contains(JE_Var_Object)).map(_._1)
       .map(x => x.map(y => if(y.isInstanceOf[Int]) Star else y))

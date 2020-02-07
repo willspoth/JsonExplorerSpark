@@ -10,8 +10,8 @@ scalaVersion := "2.11.12"
 libraryDependencies ++= Seq(
   // Spark
   "org.apache.spark" %% "spark-core" % "2.3.2",
-  "org.apache.spark" %% "spark-sql" % "2.3.2",
-  "org.apache.spark" %% "spark-mllib" % "2.3.2" % "runtime"
+  "org.apache.spark" %% "spark-sql" % "2.3.2"//,
+  //"org.apache.spark" %% "spark-mllib" % "2.3.2" % "runtime"
 
 )
 

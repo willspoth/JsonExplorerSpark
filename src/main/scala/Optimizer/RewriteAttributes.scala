@@ -96,6 +96,32 @@ object RewriteAttributes {
       return attribute
   }
 
+
+  def checkForTupleArrayOfObjects(attributeTree: AttributeTree): Unit = {
+    if(!attributeTree.name.equals("$") && attributeTree.attribute.`type`.contains(JE_Array)) { // skip root
+      val allObjs: Boolean = attributeTree.attribute.typeList.forall(x => {
+        x._1 match {
+          case JE_Array(a) => a.forall(y => y.equals(JE_Object) || y.equals(JE_Empty_Object) )
+          case _ => false
+        }
+      })
+
+      val allSameSize: Boolean = attributeTree.attribute.typeList.flatMap(x => {
+        x._1 match {
+          case JE_Array(a) => List(a.size)
+          case JE_Empty_Array => List(0)
+          case _ => List()
+        }
+      }).filter(_ > 1).toSet.size == 1
+
+      if(allObjs && allSameSize)
+        throw new Exception("Static Object array Found: " + Types.nameToString(ListBuffer(attributeTree.name)))
+    }
+
+    attributeTree.children.foreach(x => checkForTupleArrayOfObjects(x._2))
+  }
+
+
   def rewriteSemanticTypes(attributeTree: AttributeTree,
                            objectKeySpaceThreshold: Double,
                            arrayKeySpaceThreshold: Double,
