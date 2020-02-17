@@ -114,8 +114,8 @@ object RewriteAttributes {
         }
       }).filter(_ > 1).toSet.size == 1
 
-      if(allObjs && allSameSize)
-        throw new Exception("Static Object array Found: " + Types.nameToString(ListBuffer(attributeTree.name)))
+      //if(allObjs && allSameSize)
+        //throw new Exception("Static Object array Found: " + Types.nameToString(ListBuffer(attributeTree.name)))
     }
 
     attributeTree.children.foreach(x => checkForTupleArrayOfObjects(x._2))

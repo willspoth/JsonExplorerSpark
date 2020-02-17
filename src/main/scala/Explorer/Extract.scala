@@ -44,10 +44,7 @@ object Extract {
   }
 
   def mergeValue(m: scala.collection.mutable.HashMap[JsonExplorerType,Int], jet: JsonExplorerType): scala.collection.mutable.HashMap[JsonExplorerType,Int] = {
-    m.get(jet) match {
-      case Some(count) => m.update(jet,count+1)
-      case None => m.put(jet,1)
-    }
+    m.put(jet,m.getOrElse(jet,0)+1)
     m
   }
 
@@ -70,5 +67,39 @@ object Extract {
       c2
     }
   }
+
+
+  def ExtractCombinedAttributes(row: JsonExplorerType): scala.collection.mutable.HashMap[AttributeName,scala.collection.mutable.Set[JsonExplorerType]] = {
+    val attributeMap: scala.collection.mutable.HashMap[AttributeName,scala.collection.mutable.Set[JsonExplorerType]] = scala.collection.mutable.HashMap[AttributeName,scala.collection.mutable.Set[JsonExplorerType]]()
+
+    def insert(name: AttributeName, typ: JsonExplorerType): Unit = attributeMap.put(name,(attributeMap.getOrElse(name,scala.collection.mutable.Set[JsonExplorerType]()) + typ))
+
+    // extracts the types and child types and adds them to root
+    def extract(name: AttributeName,jet: JsonExplorerType): Unit = {
+      jet match {
+        case JE_String | JE_Numeric | JE_Boolean | JE_Null | JE_Empty_Array | JE_Empty_Object => insert(name,jet)
+        case JE_Object(xs) =>
+          if(name.nonEmpty) {
+            insert(name,JE_Object(xs.map(je => {
+              (je._1, je._2.getType())
+            })))
+          }
+          xs.foreach(je => extract(name :+ je._1, je._2))
+        case JE_Array(xs) =>
+          if(name.nonEmpty) {
+            insert(name,JE_Array(xs.map(je => {je.getType()})))
+          }
+          val n = name :+ Star
+          xs.zipWithIndex.foreach(je => {
+            extract(n, je._1)
+          })
+      }
+    }
+
+    extract(new AttributeName(),row)
+
+    attributeMap
+  }
+
 
 }

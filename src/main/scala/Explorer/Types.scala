@@ -121,6 +121,10 @@ case class JE_Array(xs:ListBuffer[JsonExplorerType]) extends JsonExplorerType {
 
   override def add(name: String, jet: JsonExplorerType): Unit = {xs += jet}
   override def isEmpty(): Boolean = xs.isEmpty
+
+  def shallowCopy(): ListBuffer[JsonExplorerType] = {
+    xs.map(_.getType())
+  }
 }
 
 case class JE_Object(xs:scala.collection.mutable.HashMap[String,JsonExplorerType]) extends JsonExplorerType {
@@ -135,6 +139,10 @@ case class JE_Object(xs:scala.collection.mutable.HashMap[String,JsonExplorerType
   }
 
   override def isEmpty(): Boolean = xs.isEmpty
+
+  def shallowCopy(): mutable.HashMap[String,JsonExplorerType] = {
+    xs.map(x => (x._1,x._2.getType()))
+  }
 }
 
 // rewritten types after Explorer

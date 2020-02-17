@@ -1,6 +1,6 @@
 package util
 
-import org.apache.spark.SparkConf
+import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
@@ -17,6 +17,7 @@ object CMDLineParser {
   case class config(fileName: String,
                     logFileName: String,
                     train: RDD[String],
+                    validation: RDD[String],
                     trainPercent: Double,
                     validationSize: Int,
                     seed: Option[Int],
@@ -24,11 +25,13 @@ object CMDLineParser {
                     memory: Option[Boolean],
                     runBiMax: MergeAlgorithm,
                     kse: Double,
+                    calculateEntropy: Boolean,
                     name: String,
                     writeJsonSchema: Boolean,
                     argMap: mutable.HashMap[String, String],
                     generateDot: Boolean = false,
-                    useUI: Boolean = false
+                    useUI: Boolean = false,
+                    writeEntropy: Boolean = false
                    )
 
   def readArgs(args: Array[String]): config = {
@@ -59,6 +62,12 @@ object CMDLineParser {
     }
 
     val writeJsonSchema: Boolean = argMap.get("schema") match {
+      case Some("true" | "t" | "y" | "yes") => true
+      case Some("n" | "no" | "false" | "f") => false
+      case _ | None => true
+    }
+
+    val calculateEntropy: Boolean = argMap.get("entropy") match {
       case Some("true" | "t" | "y" | "yes") => true
       case Some("n" | "no" | "false" | "f") => false
       case _ | None => true
@@ -101,7 +110,7 @@ object CMDLineParser {
 
     val (train, validation) = split(spark, filename, trainPercent, validationSize, seed, numberOfRows)
 
-    return config(filename, logFileName, train, trainPercent, validationSize, seed, spark, memory, runBiMax, kse,spark.conf.get("name").toString, writeJsonSchema, argMap)
+    return config(filename, logFileName, train, validation, trainPercent, validationSize, seed, spark, memory, runBiMax, kse, calculateEntropy,spark.conf.get("name").toString, writeJsonSchema, argMap)
   }
 
 
@@ -120,7 +129,7 @@ object CMDLineParser {
     return spark
   }
 
-  def split(spark:SparkSession, fileName: String, trainPercent: Double, validationSize: Int, seed: Option[Int], totalRows: Option[Int]): (RDD[String],RDD[String]) = {
+  def split(spark: SparkSession, fileName: String, trainPercent: Double, validationSize: Int, seed: Option[Int], totalRows: Option[Int]): (RDD[String],RDD[String]) = {
     val totalNumberOfLines: Long = totalRows match {
       case Some(i) => i
       case None =>

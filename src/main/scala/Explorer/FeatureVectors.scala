@@ -7,7 +7,7 @@ import scala.collection.mutable
 object FeatureVectors {
 
   // TODO this should be a tree :/
-  private def getSchema(schemas: Seq[AttributeName], path: AttributeName): AttributeName = {
+  private def getSchema(schemas: Set[AttributeName], path: AttributeName): AttributeName = {
     schemas.foreach(q => {
       if(Types.isStrictSubSet(path,q))
         return q
@@ -16,10 +16,45 @@ object FeatureVectors {
   }
 
 
-  def shredJET(schemas: Seq[AttributeName], attribute: JsonExplorerType
-                ): mutable.ListBuffer[(AttributeName, mutable.HashMap[AttributeName,mutable.Set[JsonExplorerType]])] =
+//  def shredJET(varObjs: Set[AttributeName], objArray: Set[AttributeName], attribute: JsonExplorerType
+//                ): mutable.ListBuffer[(AttributeName, Map[AttributeName,mutable.Set[JsonExplorerType]])] =
+//  {
+//    val attributeList = mutable.ListBuffer[(AttributeName, AttributeName, Map[AttributeName,mutable.Set[JsonExplorerType]])]()
+//
+//    def flatten(currentSchema: AttributeName, name: AttributeName, jet: JsonExplorerType): Map[AttributeName,mutable.Set[JsonExplorerType]] =
+//    {
+//      jet match {
+//        case JE_String | JE_Numeric | JE_Boolean | JE_Null | JE_Empty_Array | JE_Empty_Object =>
+//          return Map[AttributeName,mutable.Set[JsonExplorerType]]((name,mutable.Set(jet.getType())))
+//        case JE_Object(xs) =>
+//          if(varObjs.contains(name) && !name.equals(currentSchema)){ // variable object
+//            attributeList.append((name,(name,flatten(name,name,jet))))
+//            return Map[AttributeName,mutable.Set[JsonExplorerType]]((name,mutable.Set(jet.getType())))
+//          } else {
+//            return Map[AttributeName,mutable.Set[JsonExplorerType]]((name,mutable.Set(jet.getType()))) ++
+//              xs.map(x => flatten(currentSchema,name++mutable.ListBuffer(x._1),x._2)).reduce(_++_)
+//          }
+//
+//        case JE_Array(xs) =>
+//          if(objArray.contains(name) && !name.equals(currentSchema)){ // variable object
+//            attributeList.append((name,(name,flatten(name,name,jet))))
+//            return Map[AttributeName,mutable.Set[JsonExplorerType]]((name,mutable.Set(jet.getType())))
+//          } else {
+//            return Map[AttributeName,mutable.Set[JsonExplorerType]]((name,mutable.Set(jet.getType()))) ++
+//              xs.map(x => flatten(currentSchema,name++mutable.ListBuffer(Star),x)).reduce(_++_)
+//          }
+//      }
+//    }
+//
+//    attributeList.append((mutable.ListBuffer[Any](),(mutable.ListBuffer[Any](),flatten(mutable.ListBuffer[Any](),mutable.ListBuffer[Any](),attribute))))
+//
+//    return attributeList
+//  }
+
+  def shredJET(varObjs: Set[AttributeName], objArray: Set[AttributeName], attribute: JsonExplorerType
+              ): mutable.ListBuffer[(AttributeName,(AttributeName, mutable.HashMap[AttributeName,mutable.Set[JsonExplorerType]]))] =
   {
-    val attributeList = mutable.ListBuffer[(AttributeName, mutable.HashMap[AttributeName,mutable.Set[JsonExplorerType]])]()
+    val attributeList = mutable.ListBuffer[(AttributeName,(AttributeName, mutable.HashMap[AttributeName,mutable.Set[JsonExplorerType]]))]() // can't just use map because of array of objects
 
     def flatten(currentSchema: AttributeName, currentMap: mutable.HashMap[AttributeName,mutable.Set[JsonExplorerType]], name: AttributeName, jet: JsonExplorerType): Unit =
     {
@@ -28,42 +63,99 @@ object FeatureVectors {
           currentMap.put(name,mutable.Set(jet.getType()))
         case JE_Object(xs) =>
           currentMap.put(name,mutable.Set(jet.getType()))
-          xs.foreach{case(childName,childJET) => {
-            val tempMap = if(schemas.contains(name)) mutable.HashMap[AttributeName,mutable.Set[JsonExplorerType]]() else currentMap
-            flatten(if(schemas.contains(name)) name else currentSchema,tempMap,name++mutable.ListBuffer(childName),childJET)
-            if(schemas.contains(name)) attributeList.append((name,tempMap))
-          }}
+          if(varObjs.contains(name)){
+            val tempMap =  mutable.HashMap[AttributeName,mutable.Set[JsonExplorerType]]()
+            xs.foreach{case(childName,childJET) => {
+              flatten(name,tempMap,name++mutable.ListBuffer(childName),childJET)
+            }}
+            attributeList.append((name,(name,tempMap)))
+          } else {
+            xs.foreach{case(childName,childJET) => {
+              flatten(currentSchema,currentMap,name++mutable.ListBuffer(childName),childJET)
+            }}
+          }
+
         case JE_Array(xs) =>
           currentMap.put(name,mutable.Set(jet.getType()))
-          xs.foreach( childJET => {
-            val tempMap = if(schemas.contains(name)) mutable.HashMap[AttributeName,mutable.Set[JsonExplorerType]]() else currentMap
-            flatten(if(schemas.contains(name)) name else currentSchema,tempMap,name++mutable.ListBuffer(Star),childJET)
-            if(schemas.contains(name)) attributeList.append((name,tempMap))
-          })
+          if(objArray.contains(name)){
+            xs.foreach{childJET => {
+              val tempMap =  mutable.HashMap[AttributeName,mutable.Set[JsonExplorerType]]()
+              flatten(name,tempMap,name++mutable.ListBuffer(Star),childJET)
+              attributeList.append((name,(name,tempMap)))
+            }}
+          } else {
+            xs.foreach{childJET => {
+              flatten(currentSchema,currentMap,name++mutable.ListBuffer(Star),childJET)
+            }}
+          }
       }
     }
 
     val m = mutable.HashMap[AttributeName,mutable.Set[JsonExplorerType]]()
     flatten(mutable.ListBuffer[Any](),m,mutable.ListBuffer[Any](),attribute)
-    attributeList.append((mutable.ListBuffer[Any](),m))
+    attributeList.append((mutable.ListBuffer[Any](),(mutable.ListBuffer[Any](),m)))
 
     return attributeList
   }
 
 
+//  def extractTypes(varObjs: Set[AttributeName], objArray: Set[AttributeName],currentSchema: AttributeName, name: AttributeName, jet: JsonExplorerType,
+//                   m: mutable.ListBuffer[(AttributeName,(AttributeName,mutable.Set[JsonExplorerType]))]): Unit =
+//  {
+//    jet match {
+//      case JE_String | JE_Numeric | JE_Boolean | JE_Null | JE_Empty_Array | JE_Empty_Object =>
+//        m.append((currentSchema,(name,mutable.Set(jet.getType()))))
+//      case JE_Object(xs) =>
+//        m.append((currentSchema,(name,mutable.Set(jet.getType()))))
+//        if(varObjs.contains(name)){
+//          xs.foreach{case(childName,childJET) => {
+//            extractTypes(varObjs, objArray, name ,name++mutable.ListBuffer(childName),childJET,m)
+//          }}
+//        } else {
+//          xs.foreach{case(childName,childJET) => {
+//            extractTypes(varObjs, objArray, currentSchema, name++mutable.ListBuffer(childName),childJET, m)
+//          }}
+//        }
+//
+//      case JE_Array(xs) =>
+//        m.append((currentSchema,(name,mutable.Set(jet.getType()))))
+//        if(objArray.contains(name)){
+//          xs.zipWithIndex.foreach{case(childJET,idx) => {
+//            extractTypes(varObjs, objArray, name++mutable.ListBuffer(idx),name++mutable.ListBuffer(Star),childJET,m)
+//          }}
+//        } else {
+//          xs.foreach{childJET => {
+//            extractTypes(varObjs, objArray, currentSchema,name++mutable.ListBuffer(Star),childJET, m)
+//          }}
+//        }
+//    }
+//  }
+//
+//  def shredJET(varObjs: Set[AttributeName], objArray: Set[AttributeName], attribute: JsonExplorerType
+//              ): mutable.ListBuffer[(AttributeName,(AttributeName, Map[AttributeName,mutable.Set[JsonExplorerType]]))] =
+//  {
+//    val m: mutable.ListBuffer[(AttributeName,(AttributeName,mutable.Set[JsonExplorerType]))] = mutable.ListBuffer[(AttributeName,(AttributeName,mutable.Set[JsonExplorerType]))]()
+//
+//    extractTypes(varObjs, objArray, mutable.ListBuffer[Any](),mutable.ListBuffer[Any](),attribute, m)
+//
+//    return m.groupBy(_._1).map(x => (x._1,(x._1,x._2.map(_._2).toMap)))
+//  }
 
-  def create(schemas: Seq[AttributeName], row: JsonExplorerType
-            ): mutable.ListBuffer[(AttributeName, (AttributeName,mutable.HashMap[AttributeName,mutable.Set[JsonExplorerType]]))] = // schemaName, schemaName -> repeated for combineByKey
-  {
-    shredJET(schemas,row).map(x => (x._1,(x._1,x._2)))
-  }
 
 
-  def createCombiner(variableObjects: Set[AttributeName],
+//  def create(varObjs: Set[AttributeName], objArray: Set[AttributeName], row: JsonExplorerType
+//            ): mutable.ListBuffer[(AttributeName, (AttributeName,mutable.HashMap[AttributeName,mutable.Set[JsonExplorerType]]))] = // schemaName, schemaName -> repeated for combineByKey
+//  {
+//    shredJET(varObjs, objArray, row)
+//  }
+
+
+  def createCombiner(varObjs: Set[AttributeName],
+                     objArr: Set[AttributeName],
                      row: (AttributeName,mutable.HashMap[AttributeName, mutable.Set[JsonExplorerType]])
                     ): Either[mutable.HashMap[Map[AttributeName,mutable.Set[JsonExplorerType]],Int],mutable.HashMap[AttributeName,(mutable.Set[JsonExplorerType],Int)]] = // schema attributes
   {
-    if(variableObjects.contains(row._1)) { // var object
+    if(varObjs.contains(row._1)) { // var object
       val m = mutable.HashMap[AttributeName,(mutable.Set[JsonExplorerType],Int)]()
       row._2.foreach(x => {
         m.put(x._1,(x._2,1))

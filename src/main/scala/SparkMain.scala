@@ -3,17 +3,12 @@ package JsonExplorer
 import java.io._
 import java.util.Calendar
 
-import Explorer.Types.{BiMaxNode, BiMaxStruct, DisjointNodes}
+
+import Explorer.Types.{BiMaxNode, BiMaxStruct}
 import org.apache.spark.rdd.RDD
 import util.NodeToJsonSchema
-
-//import BiMax.OurBiMax
 import Explorer.Types.AttributeName
 import Explorer._
-import Optimizer.RewriteAttributes
-import org.apache.spark.storage.StorageLevel
-import util.CMDLineParser
-import org.apache.spark.util.SizeEstimator
 
 import scala.collection.mutable
 
@@ -23,98 +18,45 @@ object SparkMain {
 
   def main(args: Array[String]): Unit = {
 
-    // Row Counts:
-      // Medicine: 239,930
-      // Github: 3,321,596
-      // Yelp: 7,437,120
-        // Business: 156,639
-        // Checkin: 135,148
-        // Photos: 196,278
-        // Review: 4,736,897
-        // Tip: 1,028,802
-        // User: 1,183,362
-
     val log: mutable.ListBuffer[LogOutput] = mutable.ListBuffer[LogOutput]()
     log += LogOutput("Date",Calendar.getInstance().getTime().toString,"Date: ")
 
-    val config = CMDLineParser.readArgs(args) // Creates the Spark session with its config values.
+    val config = util.CMDLineParser.readArgs(args) // Creates the Spark session with its config values.
 
+    log += LogOutput("InputFile",config.fileName,"Input File: ")
 
-    log += LogOutput("inputFile",config.fileName,"Input File: ")
-
+//    Exec.Verbose.run(config.train,config.validation, log)
+//    ???
 
     val startTime = System.currentTimeMillis() // Start timer
 
-    /*
-      Shred the input file into JsonExplorerTypes while keeping the JSON tree structure.
-      This can then be parsed in the feature vector creation phase without having to re-read the input file.
-     */
-    val shreddedRecords: RDD[JsonExplorerType] = RunExplorer.shredRecords(config.train)
+    val calculateEntropy = true
 
-    /*
-      Preform the extraction phase:
-        - Traverses the shredded JsonExplorerObject
-        - Collects each attributes type information and co-occurrence-lite
-        - This can then be converted into key-space and type entropy
-     */
-
-    val extractedAttributes: Array[(AttributeName,Attribute)] = RunExplorer.extractTypeStructure(shreddedRecords)
-
-
-    val extractionTime = System.currentTimeMillis()
-    val extractionRunTime = extractionTime - startTime
-
-    val attributeTree: AttributeTree = RunExplorer.applyTypeCorrection(extractedAttributes, config.kse)
-
-    // TODO check type entropy, might be a bit screwy since it was negative
-    // get schemas to break on
-    val schemas: Seq[(AttributeName,JsonExplorerType)] = RewriteAttributes.getSchemas(attributeTree)
-      .map(x => (x._1.map(y => if(y.isInstanceOf[Int]) Star else y),x._2)) // remove possibility of weird array stuff
-      .toSeq
-      .sortBy(_._1.size)(Ordering[Int].reverse)
-
-    val optimizationTime = System.currentTimeMillis()
-    val optimizationRunTime = optimizationTime - extractionTime
-
-    val attributeMap = RewriteAttributes.attributeTreeToAttributeMap(attributeTree)
-
-
-    if(false) {
-      // write csv of entropy for graphs
-      val entropyWriter = new PrintWriter(new File(config.logFileName + ".entropy"))
-      entropyWriter.write("name,object_kse,object_te\n")
-      entropyWriter.write(attributeMap.map { case (name, attribute) => {
-        attribute.objectMarginalKeySpaceEntropy match {
-          case Some(v) => List("\"" + Types.nameToString(name) + "\"", attribute.objectMarginalKeySpaceEntropy.get.toString, attribute.objectTypeEntropy.get.toString)
-          case None => List()
-        }
-      }
-      }.filter(_.nonEmpty).map(_.mkString(",")).mkString("\n"))
-      entropyWriter.close()
-      ???
+    val (variableObjs, objArrs): (Set[AttributeName],Set[AttributeName]) = if(calculateEntropy) {
+      RunExplorer.extractComplexSchemas(config,startTime,log)
+    } else {
+      (Set[AttributeName](),Set[AttributeName]())
     }
 
-    ???
 
-    val variableObjects: Set[AttributeName] = attributeMap.filter(x=> !x._1.isEmpty && attributeMap.get(x._1).get.`type`.contains(JE_Var_Object)).map(_._1)
-      .map(x => x.map(y => if(y.isInstanceOf[Int]) Star else y))
-      .toSet
+    val secondPassStart = System.currentTimeMillis()
 
-    val RewriteTime = System.currentTimeMillis() // End Timer
-    val RewriteRunTime = RewriteTime - extractionRunTime
+    val shreddedRecords: RDD[JsonExplorerType] = RunExplorer.shredRecords(config.train)
 
     // create feature vectors, currently should work if schemas generated from subset of training data
-    val featureVectors: Array[(AttributeName,Either[mutable.HashMap[Map[AttributeName,mutable.Set[JsonExplorerType]],Int],mutable.HashMap[AttributeName,(mutable.Set[JsonExplorerType],Int)]])] =
-      shreddedRecords.flatMap(FeatureVectors.create(schemas.map(_._1).filterNot(_.isEmpty),_))
-        .combineByKey(x => FeatureVectors.createCombiner(variableObjects,x),FeatureVectors.mergeValue,FeatureVectors.mergeCombiners).collect()
+    val featureVectors: RDD[(AttributeName,Either[mutable.HashMap[Map[AttributeName,mutable.Set[JsonExplorerType]],Int],mutable.HashMap[AttributeName,(mutable.Set[JsonExplorerType],Int)]])] =
+      shreddedRecords.flatMap(FeatureVectors.shredJET(variableObjs, objArrs,_))
+        .combineByKey(x => FeatureVectors.createCombiner(variableObjs, objArrs,x),FeatureVectors.mergeValue,FeatureVectors.mergeCombiners)
 
 
     val fvTime = System.currentTimeMillis()
-    val fvRunTime = fvTime - optimizationTime
+    val fvRunTime = fvTime - secondPassStart
+
+    log += LogOutput("FVCreationTime",fvRunTime.toString(),"FV Creation Took: ")
 
     var algorithmSchema = ""
 
-    if(config.runBiMax.equals(CMDLineParser.BiMax)){
+    if(config.runBiMax.equals(util.CMDLineParser.BiMax)){
 
       // BiMax algorithm
       val rawSchemas: Map[AttributeName,Types.DisjointNodes] = featureVectors.map(x => {
@@ -129,12 +71,12 @@ object SparkMain {
         }
 
       })
-        .map(x => if (x._3) (x._1,BiMax.OurBiMax2.rewrite(x._2)) else (x._1,x._2)).toMap
+        .map(x => if (x._3) (x._1,BiMax.OurBiMax2.rewrite(x._2)) else (x._1,x._2)).collect().toMap
 
       // combine subset types for each attribute
       val mergedSchemas = rawSchemas.map{case(name,djn) => (name,djn.map(bms => bms.map(NodeToJsonSchema.biMaxNodeTypeMerger(_))))}
 
-      val variableObjWithMult: Map[AttributeName,(mutable.Set[JsonExplorerType],Int)] = variableObjects
+      val variableObjWithMult: Map[AttributeName,(mutable.Set[JsonExplorerType],Int)] = variableObjs
         .map(varObjName => {val m = mergedSchemas
         .map(djn => { val d = djn._2
         .flatMap(possibleSchemas => possibleSchemas
@@ -154,7 +96,7 @@ object SparkMain {
 
       val JsonSchema: util.JsonSchema.JSS = util.NodeToJsonSchema.biMaxToJsonSchema(mergedSchemas,variableObjWithMult)
       algorithmSchema = JsonSchema.toString  + "\n"
-    } else if(config.runBiMax.equals(CMDLineParser.Subset)) {
+    } else if(config.runBiMax.equals(util.CMDLineParser.Subset)) {
 
       // onlySubSet test
       val onlySubset: Map[AttributeName, Types.DisjointNodes] = featureVectors.map(x => {
@@ -169,10 +111,10 @@ object SparkMain {
         }
 
       })
-        .map(x => (x._1, x._2)).toMap
+        .map(x => (x._1, x._2)).collect().toMap
 
       //TODO algorithmSchema = util.NodeToJsonSchema.biMaxToJsonSchema(onlySubset, attributeMap).toString  + "\n"
-    } else if(config.runBiMax.equals(CMDLineParser.Verbose)){
+    } else if(config.runBiMax.equals(util.CMDLineParser.Verbose)){
       val rawSchemas: Map[AttributeName,Types.DisjointNodes] = featureVectors.map(x => {
         x._2 match {
           case Left(l) =>
@@ -194,9 +136,9 @@ object SparkMain {
             )
         }
 
-      }).toMap
+      }).collect().toMap
 
-      val variableObjWithMult: Map[AttributeName,(mutable.Set[JsonExplorerType],Int)] = variableObjects
+      val variableObjWithMult: Map[AttributeName,(mutable.Set[JsonExplorerType],Int)] = variableObjs
         .map(varObjName => {val m = rawSchemas
           .map(djn => { val d = djn._2
             .flatMap(possibleSchemas => possibleSchemas
@@ -223,13 +165,11 @@ object SparkMain {
     val endTime = System.currentTimeMillis() // End Timer
 
 
-    log += LogOutput("ExtractionTime",extractionRunTime.toString,"Extraction Took: "," ms")
-    log += LogOutput("OptimizationTime",optimizationRunTime.toString,"Optimization Took: "," ms")
     //log += LogOutput("FVTime",fvRunTime.toString,"FV Creation Took: "," ms")
     log += LogOutput("TotalTime",(endTime - startTime).toString,"Total execution time: ", " ms")
     log += LogOutput("TrainPercent",config.trainPercent.toString,"TrainPercent: ")
     log += LogOutput("ValidationSize",config.validationSize.toString,"ValidationSize: ")
-    log += LogOutput("Algorithm",if(config.runBiMax.equals(CMDLineParser.BiMax)) "bimax" else if(config.runBiMax.equals(CMDLineParser.Subset)) "subset" else if(config.runBiMax.equals(CMDLineParser.Verbose)) "verbose" else "unknown","Algorithm: ")
+    log += LogOutput("Algorithm",if(config.runBiMax.equals(util.CMDLineParser.BiMax)) "bimax" else if(config.runBiMax.equals(util.CMDLineParser.Subset)) "subset" else if(config.runBiMax.equals(util.CMDLineParser.Verbose)) "verbose" else "unknown","Algorithm: ")
     log += LogOutput("Seed",config.seed match {
       case Some(i) => i.toString
       case None => "None"},"Seed: ")
@@ -256,3 +196,14 @@ object SparkMain {
   }
 
 }
+
+// Row Counts:
+// Medicine: 239,930
+// Github: 3,321,596
+// Yelp: 7,437,120
+// Business: 156,639
+// Checkin: 135,148
+// Photos: 196,278
+// Review: 4,736,897
+// Tip: 1,028,802
+// User: 1,183,362
