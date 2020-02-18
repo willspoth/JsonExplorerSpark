@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import json
 import math
 
-datasetName = "Twitter"
+datasetName = "synapse"
 
 with open(datasetName.lower()+'.log') as f:
     lines = f.readlines()
