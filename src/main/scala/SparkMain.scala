@@ -23,12 +23,29 @@ object SparkMain {
 
     val config = util.CMDLineParser.readArgs(args) // Creates the Spark session with its config values.
 
-    log += LogOutput("InputFile",config.fileName,"Input File: ")
+    log += LogOutput("inputFile",config.fileName,"Input File: ")
 
 //    Exec.Verbose.run(config.train,config.validation, log)
 //    ???
 
+    println(config.validation.count())
+
     val startTime = System.currentTimeMillis() // Start timer
+//    config.train.mapPartitions(x=>JacksonShredder.shred(x))
+//      .flatMap(Extract.ExtractAttributes(_))
+//      .combineByKey(Extract.createCombiner,Extract.mergeValue,Extract.mergeCombiners)
+//      .count()
+//
+
+//    val (v,a) = RunExplorer.extractComplexSchemas(config,startTime,log)
+//    config.train.mapPartitions(x=>JacksonShredder.shred(x))
+//      .flatMap(FeatureVectors.shredJET(v, Set(),_))
+//      .combineByKey(x => FeatureVectors.createCombiner(v, Set(),x),FeatureVectors.mergeValue,FeatureVectors.mergeCombiners)
+//      .count()
+//
+//    val eTime = System.currentTimeMillis() // Start timer
+//    println(eTime-startTime)
+//    ???
 
     val calculateEntropy = true
 
@@ -44,9 +61,12 @@ object SparkMain {
     val shreddedRecords: RDD[JsonExplorerType] = RunExplorer.shredRecords(config.train)
 
     // create feature vectors, currently should work if schemas generated from subset of training data
-    val featureVectors: RDD[(AttributeName,Either[mutable.HashMap[Map[AttributeName,mutable.Set[JsonExplorerType]],Int],mutable.HashMap[AttributeName,(mutable.Set[JsonExplorerType],Int)]])] =
+    val featureVectors: Array[(AttributeName,Either[mutable.HashMap[Map[AttributeName,mutable.Set[JsonExplorerType]],Int],mutable.HashMap[AttributeName,(mutable.Set[JsonExplorerType],Int)]])] =
       shreddedRecords.flatMap(FeatureVectors.shredJET(variableObjs, objArrs,_))
-        .combineByKey(x => FeatureVectors.createCombiner(variableObjs, objArrs,x),FeatureVectors.mergeValue,FeatureVectors.mergeCombiners)
+        .combineByKey(x => FeatureVectors.createCombiner(variableObjs, objArrs,x),FeatureVectors.mergeValue,FeatureVectors.mergeCombiners).collect()
+
+//    FastFeatureVector.extract(variableObjs, objArrs, shreddedRecords)
+//      .count()
 
 
     val fvTime = System.currentTimeMillis()
@@ -71,7 +91,7 @@ object SparkMain {
         }
 
       })
-        .map(x => if (x._3) (x._1,BiMax.OurBiMax2.rewrite(x._2)) else (x._1,x._2)).collect().toMap
+        .map(x => if (x._3) (x._1,BiMax.OurBiMax2.rewrite(x._2)) else (x._1,x._2)).toMap
 
       // combine subset types for each attribute
       val mergedSchemas = rawSchemas.map{case(name,djn) => (name,djn.map(bms => bms.map(NodeToJsonSchema.biMaxNodeTypeMerger(_))))}
@@ -111,7 +131,7 @@ object SparkMain {
         }
 
       })
-        .map(x => (x._1, x._2)).collect().toMap
+        .map(x => (x._1, x._2)).toMap
 
       //TODO algorithmSchema = util.NodeToJsonSchema.biMaxToJsonSchema(onlySubset, attributeMap).toString  + "\n"
     } else if(config.runBiMax.equals(util.CMDLineParser.Verbose)){
@@ -136,7 +156,7 @@ object SparkMain {
             )
         }
 
-      }).collect().toMap
+      }).toMap
 
       val variableObjWithMult: Map[AttributeName,(mutable.Set[JsonExplorerType],Int)] = variableObjs
         .map(varObjName => {val m = rawSchemas
@@ -207,3 +227,4 @@ object SparkMain {
 // Review: 4,736,897
 // Tip: 1,028,802
 // User: 1,183,362
+// Synapse: 147847

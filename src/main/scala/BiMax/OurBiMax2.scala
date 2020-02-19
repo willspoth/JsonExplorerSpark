@@ -1,6 +1,6 @@
 package BiMax
 
-import Explorer.JsonExplorerType
+import Explorer.{FastFeatureVector, JsonExplorerType}
 import Explorer.Types.{AttributeName, BiMaxNode, BiMaxStruct, DisjointNodes}
 
 import scala.collection.mutable
@@ -27,6 +27,46 @@ object OurBiMax2 {
       return setRelation.disjoint
     }
   }
+
+//  def binFV(fvs: ListBuffer[FastFeatureVector.FeatureVector]
+//         ): DisjointNodes = {
+//
+//
+//    val disjointNodes: mutable.ListBuffer[BiMaxStruct] = mutable.ListBuffer[BiMaxStruct]()
+//
+//    var remainingNodes: mutable.ListBuffer[(Set[AttributeName],Map[AttributeName,mutable.Set[JsonExplorerType]],Int,Boolean)] = fvs.map(x => (x.localSchema,x.typeCount,false)).sortBy(_._1.size)(Ordering[Int].reverse)
+//
+//    var currentStruct = mutable.ListBuffer[BiMaxNode]()
+//
+//    // if subset once then never disjoint
+//    while(!remainingNodes.isEmpty) {
+//      val subsetSchemas   = mutable.ListBuffer[(Set[AttributeName],mutable.HashMap[AttributeName,mutable.HashMap[JsonExplorerType,Int]],Boolean)]()
+//      val combinedSchemas = mutable.ListBuffer[(Set[AttributeName],mutable.HashMap[AttributeName,mutable.HashMap[JsonExplorerType,Int]],Boolean)]()
+//      val disjointSchemas = mutable.ListBuffer[(Set[AttributeName],mutable.HashMap[AttributeName,mutable.HashMap[JsonExplorerType,Int]],Boolean)]()
+//
+//      val target = remainingNodes.head
+//      remainingNodes.tail.foreach(test => {
+//        setRelationship(target._1,test._1) match {
+//          case setRelation.subset => subsetSchemas.append(test)
+//          case setRelation.combined => combinedSchemas.append((test._1,test._2,test._3,true))
+//          case setRelation.disjoint =>
+//            if(test._4) combinedSchemas.append(test)
+//            else disjointSchemas.append(test)
+//        }
+//      })
+//
+//      currentStruct.append(BiMaxNode(target._1,target._2,target._3,subsetSchemas.map(x=>(x._2,x._3))))
+//
+//      if(combinedSchemas.isEmpty) {
+//        disjointNodes.append(currentStruct)
+//        currentStruct = mutable.ListBuffer[BiMaxNode]()
+//      }
+//
+//      remainingNodes = combinedSchemas ++ disjointSchemas
+//    }
+//
+//    disjointNodes
+//  }
 
   // first split into
   def bin(fvs: mutable.HashMap[Map[AttributeName,mutable.Set[JsonExplorerType]],Int]

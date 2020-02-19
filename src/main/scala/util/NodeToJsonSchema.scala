@@ -1,7 +1,7 @@
 package util
 
-import Explorer.{Attribute, AttributeTree, GenericTree, JE_Array, JE_Empty_Array, JE_Empty_Object, JE_Obj_Array, JE_Object, JE_Var_Object, JsonExplorerType, Types}
-import Explorer.Types.{AttributeName, BiMaxNode, AttributeNodelet, BiMaxStruct}
+import Explorer.{Attribute, AttributeTree, GenericTree, JE_Array, JE_Empty_Array, JE_Empty_Object, JE_Obj_Array, JE_Object, JE_Var_Object, JsonExplorerType, Star, Types}
+import Explorer.Types.{AttributeName, AttributeNodelet, BiMaxNode, BiMaxStruct}
 import Optimizer.RewriteAttributes
 import util.JsonSchema.{JSA_additionalProperties, JSA_anyOf, JSA_description, JSA_items, JSA_maxItems, JSA_maxProperties, JSA_oneOf, JSA_properties, JSA_required, JSA_type, JSS, JsonSchemaStructure}
 
@@ -35,24 +35,34 @@ object NodeToJsonSchema {
 
   private def biMaxNodeToTree(biMaxNode: BiMaxNode, attributeName: AttributeName, variableObjWithMult: Map[AttributeName,(mutable.Set[JsonExplorerType],Int)]): GenericTree[AttributeNodelet] = {
 
-    val l =
+    val l: ListBuffer[(Map[AttributeName, mutable.Set[JsonExplorerType]], Int)] =
       if(variableObjWithMult.contains(attributeName))
         (mutable.ListBuffer( (Map((attributeName,(variableObjWithMult.get(attributeName).get._1 ++ mutable.Set(JE_Var_Object)))),variableObjWithMult.get(attributeName).get._2),(biMaxNode.types,biMaxNode.multiplicity)) ++ biMaxNode.subsets)
       else
         (mutable.ListBuffer((biMaxNode.types,biMaxNode.multiplicity)) ++ biMaxNode.subsets)
 
-    val attributeCounts: Map[AttributeName, Int] = l
-      .flatMap{case(map,mult) => {
-        map.toList.map(x => Tuple2(x._1,mult))
-      }}.groupBy(_._1).map(x => (x._1,x._2.map(_._2).reduce(_+_)))
+    val attributeCounts: mutable.HashMap[AttributeName,mutable.HashMap[JsonExplorerType, Int]] = mutable.HashMap[AttributeName,mutable.HashMap[JsonExplorerType, Int]]()
+    l.foreach{case(map,mult) => {
+      map.foreach{case(n, tSet) => {
+        tSet.foreach(t => {
+          attributeCounts.get(n) match {
+            case Some(m) => m.put(t, m.getOrElse(t, 0) + mult)
+            case None => attributeCounts.put(n, mutable.HashMap[JsonExplorerType, Int]((t -> mult)))
+          }
+        })
+      }}
+    }}
+
+//      l.flatMap{case(map,mult) =>
+//        map.toList.map(x => Tuple2(x,mult))
+//      }}.groupBy(_._1).map(x => (x._1,x._2.map(_._2).reduce(_+_)))
 
 
 
-    val gTree = RewriteAttributes.GenericListToGenericTree[AttributeNodelet](attributeCounts.toArray.map(_._1)
-      .map(x => (x,
-        AttributeNodelet(x,
-          biMaxNode.types.get(x) match {case Some(t) => t case None => {variableObjWithMult.get(attributeName) match {case Some(n) => (n._1++ mutable.Set(JE_Var_Object)) case None => throw new Exception("idk")}}},
-          attributeCounts.get(x).get
+    val gTree = RewriteAttributes.GenericListToGenericTree[AttributeNodelet](attributeCounts.toArray.map(x => (x._1,
+        AttributeNodelet(x._1,
+          mutable.Set[JsonExplorerType](x._2.map(_._1).toSeq:_*),// match {case Some(t) => t case None => {variableObjWithMult.get(attributeName) match {case Some(n) => (n._1++ mutable.Set(JE_Var_Object)) case None => throw new Exception("idk")}}},
+          if(x._2.size>0) x._2.map(_._2).reduce(_+_) else 0
         )
       ))
     )

@@ -58,11 +58,17 @@ object FeatureVectors {
 
     def flatten(currentSchema: AttributeName, currentMap: mutable.HashMap[AttributeName,mutable.Set[JsonExplorerType]], name: AttributeName, jet: JsonExplorerType): Unit =
     {
+
+      currentMap.get(name) match {
+        case Some(set) => set.add(jet.getType())
+        case None => currentMap.put(name,mutable.Set(jet.getType()))
+      }
+
       jet match {
         case JE_String | JE_Numeric | JE_Boolean | JE_Null | JE_Empty_Array | JE_Empty_Object =>
-          currentMap.put(name,mutable.Set(jet.getType()))
+          //currentMap.put(name,mutable.Set(jet.getType()))
         case JE_Object(xs) =>
-          currentMap.put(name,mutable.Set(jet.getType()))
+          //currentMap.put(name,mutable.Set(jet.getType()))
           if(varObjs.contains(name)){
             val tempMap =  mutable.HashMap[AttributeName,mutable.Set[JsonExplorerType]]()
             xs.foreach{case(childName,childJET) => {
@@ -76,7 +82,7 @@ object FeatureVectors {
           }
 
         case JE_Array(xs) =>
-          currentMap.put(name,mutable.Set(jet.getType()))
+          //currentMap.put(name,mutable.Set(jet.getType()))
           if(objArray.contains(name)){
             xs.foreach{childJET => {
               val tempMap =  mutable.HashMap[AttributeName,mutable.Set[JsonExplorerType]]()
@@ -141,13 +147,6 @@ object FeatureVectors {
 //    return m.groupBy(_._1).map(x => (x._1,(x._1,x._2.map(_._2).toMap)))
 //  }
 
-
-
-//  def create(varObjs: Set[AttributeName], objArray: Set[AttributeName], row: JsonExplorerType
-//            ): mutable.ListBuffer[(AttributeName, (AttributeName,mutable.HashMap[AttributeName,mutable.Set[JsonExplorerType]]))] = // schemaName, schemaName -> repeated for combineByKey
-//  {
-//    shredJET(varObjs, objArray, row)
-//  }
 
 
   def createCombiner(varObjs: Set[AttributeName],
