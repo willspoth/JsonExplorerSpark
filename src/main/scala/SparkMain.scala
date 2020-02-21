@@ -114,7 +114,7 @@ object SparkMain {
       }).toMap
 
 
-      val JsonSchema: util.JsonSchema.JSS = util.NodeToJsonSchema.biMaxToJsonSchema(mergedSchemas,variableObjWithMult)
+      val JsonSchema: util.JsonSchema.JSS = util.NodeToJsonSchema.biMaxToJsonSchema(mergedSchemas,variableObjWithMult, objArrs)
       algorithmSchema = JsonSchema.toString  + "\n"
     } else if(config.runBiMax.equals(util.CMDLineParser.Subset)) {
 
@@ -175,7 +175,7 @@ object SparkMain {
           (varObjName,m.flatten.reduce((l,r) => (l._1 ++ r._1, l._2 + r._2)))
         }).toMap
 
-      val JsonSchema: util.JsonSchema.JSS = util.NodeToJsonSchema.biMaxToJsonSchema(rawSchemas,variableObjWithMult)
+      val JsonSchema: util.JsonSchema.JSS = util.NodeToJsonSchema.biMaxToJsonSchema(rawSchemas,variableObjWithMult, objArrs)
       algorithmSchema = JsonSchema.toString  + "\n"
     } else {
       throw new Exception("Unknown Merge algorithm choice")
