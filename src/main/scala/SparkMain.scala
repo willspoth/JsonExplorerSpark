@@ -28,8 +28,6 @@ object SparkMain {
 //    Exec.Verbose.run(config.train,config.validation, log)
 //    ???
 
-    println(config.validation.count())
-
     val startTime = System.currentTimeMillis() // Start timer
 //    config.train.mapPartitions(x=>JacksonShredder.shred(x))
 //      .flatMap(Extract.ExtractAttributes(_))
@@ -228,3 +226,5 @@ object SparkMain {
 // Tip: 1,028,802
 // User: 1,183,362
 // Synapse: 147847
+// Twitter: 808,442
+// NYT2019: 69116
