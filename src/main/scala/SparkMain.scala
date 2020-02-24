@@ -25,10 +25,9 @@ object SparkMain {
 
     log += LogOutput("inputFile",config.fileName,"Input File: ")
 
-//    Exec.Verbose.run(config.train,config.validation, log)
-//    ???
-
     val startTime = System.currentTimeMillis() // Start timer
+
+
 //    config.train.mapPartitions(x=>JacksonShredder.shred(x))
 //      .flatMap(Extract.ExtractAttributes(_))
 //      .combineByKey(Extract.createCombiner,Extract.mergeValue,Extract.mergeCombiners)
