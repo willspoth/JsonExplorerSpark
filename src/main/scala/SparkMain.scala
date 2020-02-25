@@ -3,11 +3,9 @@ package JsonExplorer
 import java.io._
 import java.util.Calendar
 
-
-import Explorer.Types.{BiMaxNode, BiMaxStruct}
+import Explorer.Types.{AttributeName, BiMaxNode, BiMaxStruct, DisjointNodes}
 import org.apache.spark.rdd.RDD
 import util.NodeToJsonSchema
-import Explorer.Types.AttributeName
 import Explorer._
 
 import scala.collection.mutable
@@ -91,7 +89,7 @@ object SparkMain {
         .map(x => if (x._3) (x._1,BiMax.OurBiMax2.rewrite(x._2)) else (x._1,x._2)).toMap
 
       // combine subset types for each attribute
-      val mergedSchemas = rawSchemas.map{case(name,djn) => (name,djn.map(bms => bms.map(NodeToJsonSchema.biMaxNodeTypeMerger(_))))}
+      val mergedSchemas:  Map[AttributeName,DisjointNodes] = rawSchemas.map{case(name,djn) => (name,djn.map(bms => bms.map(NodeToJsonSchema.biMaxNodeTypeMerger(_))))}
 
       val variableObjWithMult: Map[AttributeName,(mutable.Set[JsonExplorerType],Int)] = variableObjs
         .map(varObjName => {val m = mergedSchemas
@@ -130,7 +128,25 @@ object SparkMain {
       })
         .map(x => (x._1, x._2)).toMap
 
-      //TODO algorithmSchema = util.NodeToJsonSchema.biMaxToJsonSchema(onlySubset, attributeMap).toString  + "\n"
+      val variableObjWithMult: Map[AttributeName,(mutable.Set[JsonExplorerType],Int)] = variableObjs
+        .map(varObjName => {val m = onlySubset
+          .map(djn => { val d = djn._2
+            .flatMap(possibleSchemas => possibleSchemas
+              .map(z => {
+                val first = if (z.multiplicity > 0) z.types.get(varObjName) match {case Some(v) => (v,z.multiplicity) case None => (mutable.Set[JsonExplorerType](),0)} else (mutable.Set[JsonExplorerType](),0)
+                val sec = if(z.subsets.nonEmpty) z.subsets.map(sub => if (sub._1.contains(varObjName)) (sub._1.get(varObjName).get,sub._2) else (mutable.Set[JsonExplorerType](),0)).reduce((l:(mutable.Set[JsonExplorerType],Int),r:(mutable.Set[JsonExplorerType],Int)) => (l._1 ++ r._1, l._2 + r._2))
+                else (mutable.Set[JsonExplorerType](),0)
+                (first._1 ++ sec._1,first._2+sec._2)
+              })
+            )
+            d
+          })
+
+          (varObjName,m.flatten.reduce((l,r) => (l._1 ++ r._1, l._2 + r._2)))
+        }).toMap
+
+      val JsonSchema: util.JsonSchema.JSS = util.NodeToJsonSchema.biMaxToJsonSchema(onlySubset,variableObjWithMult, objArrs)
+      algorithmSchema = JsonSchema.toString  + "\n"
     } else if(config.runBiMax.equals(util.CMDLineParser.Verbose)){
       val rawSchemas: Map[AttributeName,Types.DisjointNodes] = featureVectors.map(x => {
         x._2 match {
