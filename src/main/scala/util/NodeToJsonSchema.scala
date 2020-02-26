@@ -11,7 +11,20 @@ import scala.collection.mutable.ListBuffer
 object NodeToJsonSchema {
 
   def biMaxNodeTypeMerger(biMaxNode: BiMaxNode): BiMaxNode = {
+//    val typeMap = mutable.HashMap[(AttributeName,JsonExplorerType),Int]()
+//    (mutable.ListBuffer((biMaxNode.types,biMaxNode.multiplicity)) ++ biMaxNode.subsets)
+//      .foreach{case(x,mult) => x.foreach{case(attrName,typeSet) => typeSet.foreach(typ =>
+//        if(mult > 0) typeMap.put((attrName,typ),typeMap.getOrElse((attrName,typ),0)+mult)
+//      )}}
+
     if(biMaxNode.multiplicity > 0) {
+//      return BiMaxNode(
+//        biMaxNode.schema,
+//        biMaxNode.types,
+//        biMaxNode.multiplicity,
+//        biMaxNode.subsets,
+//        typeMap
+//      )
       return biMaxNode
     } else {
       BiMaxNode(
@@ -26,7 +39,8 @@ object NodeToJsonSchema {
           acc
         }}.toMap,
         biMaxNode.multiplicity,
-        biMaxNode.subsets
+        biMaxNode.subsets//,
+        //typeMap
       )
     }
   }
@@ -63,7 +77,8 @@ object NodeToJsonSchema {
     val gTree = RewriteAttributes.GenericListToGenericTree[AttributeNodelet](attributeCounts.toArray.map(x => (x._1,
         AttributeNodelet(x._1,
           mutable.Set[JsonExplorerType](x._2.map(_._1).toSeq:_*),// match {case Some(t) => t case None => {variableObjWithMult.get(attributeName) match {case Some(n) => (n._1++ mutable.Set(JE_Var_Object)) case None => throw new Exception("idk")}}},
-          if(x._2.size>0) x._2.map(_._2).reduce(_+_) else 0
+          if(x._2.size>0) x._2.map(_._2).reduce(_+_) else 0,
+          x._2
         )
       ))
     )
@@ -122,7 +137,7 @@ object NodeToJsonSchema {
               variableObjWithMult
             )).toSeq
 
-            val item: JSS = if (items.size > 1) JSS(Seq(JSA_oneOf(items))) else items.head
+            val item: JSS = if (items.size > 1) JSS(Seq(JSA_oneOf(items))) else items.head //TODO maybe anyOf in future?
             seq.append(JSA_items(
               item
             ))
@@ -155,7 +170,7 @@ object NodeToJsonSchema {
           // check for variable objects
           if (t.getType().equals(JE_Var_Object)) seq.append(JSA_additionalProperties(true))
 
-          // TODO array of objects
+
           if(objectArrays.contains(attributeName)){
             val items: Seq[JSS] = tree.children.map(x => attributeToJSS(
               x._2,
@@ -176,7 +191,8 @@ object NodeToJsonSchema {
           // add JSA_required
           if(t.getType().equals(JE_Object)){
             seq.append(JSA_required(
-              tree.children.map(x => (x._1.toString,x._2.payload.multiplicity == payload.multiplicity)).filter(_._2).map(_._1).toSet
+              tree.children.map(x => {
+                (x._1.toString,x._2.payload.multiplicity == (payload.typeMult.get(JE_Object).get + payload.typeMult.getOrElse(JE_Empty_Object,0)))}).filter(_._2).map(_._1).toSet
             ))
           }
 

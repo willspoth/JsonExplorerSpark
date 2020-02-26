@@ -514,8 +514,10 @@ object Types {
   type AttributeName = scala.collection.mutable.ListBuffer[Any]
 
 
-  case class BiMaxNode(schema: Set[AttributeName], types: Map[AttributeName,mutable.Set[JsonExplorerType]], multiplicity: Int, subsets: mutable.ListBuffer[(Map[AttributeName,mutable.Set[JsonExplorerType]],Int)])
-  case class AttributeNodelet(name: AttributeName, `type`: mutable.Set[JsonExplorerType], multiplicity: Int)
+  case class BiMaxNode(schema: Set[AttributeName], types: Map[AttributeName,mutable.Set[JsonExplorerType]], multiplicity: Int, subsets: mutable.ListBuffer[(Map[AttributeName,mutable.Set[JsonExplorerType]],Int)]
+                       //, typeMult: mutable.HashMap[(AttributeName,JsonExplorerType),Int] = mutable.HashMap[(AttributeName,JsonExplorerType),Int]()
+                      )
+  case class AttributeNodelet(name: AttributeName, `type`: mutable.Set[JsonExplorerType], multiplicity: Int, typeMult: mutable.HashMap[JsonExplorerType,Int])
   type BiMaxStruct = mutable.Seq[BiMaxNode]
   type DisjointNodes = mutable.Seq[BiMaxStruct]
 
