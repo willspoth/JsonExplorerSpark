@@ -1,5 +1,7 @@
 package util
 
+import java.io.File
+
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
@@ -10,9 +12,24 @@ import scala.io.Source
 object CMDLineParser {
 
   trait MergeAlgorithm
-  case object BiMax extends MergeAlgorithm
-  case object Subset extends MergeAlgorithm
-  case object Verbose extends MergeAlgorithm
+  case object BiMax extends MergeAlgorithm {
+    override def toString: String = "bimax"
+  }
+  case object Subset extends MergeAlgorithm {
+    override def toString: String = "subset"
+  }
+  case object Verbose extends MergeAlgorithm {
+    override def toString: String = "verbose"
+  }
+  case object kmeans extends MergeAlgorithm {
+    override def toString: String = "kmeans"
+  }
+  case object Flat extends MergeAlgorithm {
+    override def toString: String = "flat"
+  }
+  case object Hierarchical extends MergeAlgorithm {
+    override def toString: String = "hierarchical"
+  }
 
   case class config(fileName: String,
                     logFileName: String,
@@ -24,8 +41,10 @@ object CMDLineParser {
                     spark: SparkSession,
                     memory: Option[Boolean],
                     runBiMax: MergeAlgorithm,
+                    fast: Boolean,
                     kse: Double,
                     calculateEntropy: Boolean,
+                    k: Int,
                     name: String,
                     writeJsonSchema: Boolean,
                     argMap: mutable.HashMap[String, String],
@@ -67,6 +86,12 @@ object CMDLineParser {
       case _ | None => true
     }
 
+    val fast: Boolean = argMap.get("fast") match {
+      case Some("true" | "t" | "y" | "yes") => true
+      case Some("n" | "no" | "false" | "f") => false
+      case _ | None => false
+    }
+
     val calculateEntropy: Boolean = argMap.get("entropy") match {
       case Some("true" | "t" | "y" | "yes") => true
       case Some("n" | "no" | "false" | "f") => false
@@ -77,12 +102,18 @@ object CMDLineParser {
       case Some("bimax") => BiMax
       case Some("verbose") => Verbose
       case Some("subset") => Subset
+      case Some("kmeans") => kmeans
+      case Some("flat") => Flat
+      case Some("h") => Hierarchical
       case _ | None => BiMax
     }
 
     val logFileName: String = argMap.get("log") match {
       case Some(s) => s
-      case _ | None => (new java.io.File(filename)).getName.split("-").head+".USlog"
+      case _ | None =>
+        val f = new File(filename)
+        "schemas\\" + f.getName.split('_')(1).split('.')(0) + ".groundtruth.log"
+      //(new java.io.File(filename)).getName.split("-").head+".USlog"
     }
 
     val seed: Option[Int] = argMap.get("seed") match {
@@ -93,6 +124,11 @@ object CMDLineParser {
     val trainPercent: Double = argMap.get("train") match {
       case Some(v) => v.toDouble
       case None => 100.0
+    }
+
+    val k: Int = argMap.get("k") match {
+      case Some(v) => v.toInt
+      case None => 0
     }
 
     val validationSize: Int = argMap.get("val") match {
@@ -110,7 +146,7 @@ object CMDLineParser {
 
     val (train, validation) = split(spark, filename, trainPercent, validationSize, seed, numberOfRows)
 
-    return config(filename, logFileName, train, validation, trainPercent, validationSize, seed, spark, memory, runBiMax, kse, calculateEntropy,spark.conf.get("name").toString, writeJsonSchema, argMap)
+    return config(filename, logFileName, train, validation, trainPercent, validationSize, seed, spark, memory, runBiMax,fast, kse, calculateEntropy, k, spark.conf.get("name").toString, writeJsonSchema, argMap)
   }
 
 

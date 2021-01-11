@@ -1,12 +1,13 @@
-package JsonExplorer
-
 import java.io._
 import java.util.Calendar
 
-import Explorer.Types.{AttributeName, BiMaxNode, BiMaxStruct, DisjointNodes}
+import Extractor.Types.{AttributeName, BiMaxNode, BiMaxStruct, DisjointNodes}
 import org.apache.spark.rdd.RDD
 import util.NodeToJsonSchema
-import Explorer._
+import Extractor._
+import org.spark_project.dmg.pmml.OutputField.Algorithm
+import util.Log
+import org.apache.spark.sql.functions.col
 
 import scala.collection.mutable
 
@@ -16,36 +17,18 @@ object SparkMain {
 
   def main(args: Array[String]): Unit = {
 
-    val log: mutable.ListBuffer[LogOutput] = mutable.ListBuffer[LogOutput]()
-    log += LogOutput("Date",Calendar.getInstance().getTime().toString,"Date: ")
+    Log.add("Date",Calendar.getInstance().getTime().toString)
 
     val config = util.CMDLineParser.readArgs(args) // Creates the Spark session with its config values.
 
-    log += LogOutput("inputFile",config.fileName,"Input File: ")
+    Log.add("input file",config.fileName.replace("\\","/"))
 
     val startTime = System.currentTimeMillis() // Start timer
-
-
-//    config.train.mapPartitions(x=>JacksonShredder.shred(x))
-//      .flatMap(Extract.ExtractAttributes(_))
-//      .combineByKey(Extract.createCombiner,Extract.mergeValue,Extract.mergeCombiners)
-//      .count()
-//
-
-//    val (v,a) = RunExplorer.extractComplexSchemas(config,startTime,log)
-//    config.train.mapPartitions(x=>JacksonShredder.shred(x))
-//      .flatMap(FeatureVectors.shredJET(v, Set(),_))
-//      .combineByKey(x => FeatureVectors.createCombiner(v, Set(),x),FeatureVectors.mergeValue,FeatureVectors.mergeCombiners)
-//      .count()
-//
-//    val eTime = System.currentTimeMillis() // Start timer
-//    println(eTime-startTime)
-//    ???
 
     val calculateEntropy = true
 
     val (variableObjs, objArrs): (Set[AttributeName],Set[AttributeName]) = if(calculateEntropy) {
-      RunExplorer.extractComplexSchemas(config,startTime,log)
+      RunExplorer.extractComplexSchemas(config,startTime)
     } else {
       (Set[AttributeName](),Set[AttributeName]())
     }
@@ -60,14 +43,12 @@ object SparkMain {
       shreddedRecords.flatMap(FeatureVectors.shredJET(variableObjs, objArrs,_))
         .combineByKey(x => FeatureVectors.createCombiner(variableObjs, objArrs,x),FeatureVectors.mergeValue,FeatureVectors.mergeCombiners).collect()
 
-//    FastFeatureVector.extract(variableObjs, objArrs, shreddedRecords)
-//      .count()
 
 
     val fvTime = System.currentTimeMillis()
     val fvRunTime = fvTime - secondPassStart
 
-    log += LogOutput("FVCreationTime",fvRunTime.toString(),"FV Creation Took: ")
+    Log.add("FV creation time",fvRunTime.toString())
 
     var algorithmSchema = ""
 
@@ -76,7 +57,7 @@ object SparkMain {
       // BiMax algorithm
       val rawSchemas: Map[AttributeName,Types.DisjointNodes] = featureVectors.map(x => {
         x._2 match {
-          case Left(l) => (x._1,BiMax.OurBiMax2.bin(l),true)
+          case Left(l) => (x._1,BiMax.OurBiMax.bin(l),true)
           case Right(r) =>
             (x._1,
               mutable.Seq(mutable.Seq(
@@ -86,7 +67,7 @@ object SparkMain {
         }
 
       })
-        .map(x => if (x._3) (x._1,BiMax.OurBiMax2.rewrite(x._2)) else (x._1,x._2)).toMap
+        .map(x => if (x._3) (x._1,BiMax.OurBiMax.rewrite(x._2,config.fast)) else (x._1,x._2)).toMap
 
       //TODO track basic types from raw schemas
 
@@ -111,6 +92,23 @@ object SparkMain {
         }).toMap
 
 
+      def reduceTypes(s: mutable.Set[JsonExplorerType]): mutable.Set[JsonExplorerType] = {
+        if(s.size == 1)
+          return s
+        val typesWithoutEmpty = s.filter( t => if (t.equals(JE_Empty_Object) && s.contains(JE_Object) || (t.equals(JE_Empty_Array) && s.contains(JE_Array))) false else true)
+        val types = typesWithoutEmpty.filter( t => if (t.equals(JE_Null) && typesWithoutEmpty.size == 2) false else true)
+        return types
+      }
+
+      val reducedMergedSchemas = mergedSchemas.map(x => (x._1,x._2.map(y => y.map(z => {
+        BiMaxNode(z.schema,
+          z.types.map(r => (r._1, reduceTypes(r._2))),
+          z.multiplicity,
+          z.subsets
+        )
+
+      }))))
+      //util.JsonSchemaToJsonTable.convert(reducedMergedSchemas, variableObjs, objArrs)
       val JsonSchema: util.JsonSchema.JSS = util.NodeToJsonSchema.biMaxToJsonSchema(mergedSchemas,variableObjWithMult, objArrs)
       algorithmSchema = JsonSchema.toString  + "\n"
     } else if(config.runBiMax.equals(util.CMDLineParser.Subset)) {
@@ -118,7 +116,7 @@ object SparkMain {
       // onlySubSet test
       val onlySubset: Map[AttributeName, Types.DisjointNodes] = featureVectors.map(x => {
         x._2 match {
-          case Left(l) => (x._1, BiMax.OurBiMax2.bin(l), true)
+          case Left(l) => (x._1, BiMax.OurBiMax.bin(l), true)
           case Right(r) =>
             (x._1,
               mutable.Seq(mutable.Seq(
@@ -192,6 +190,174 @@ object SparkMain {
 
       val JsonSchema: util.JsonSchema.JSS = util.NodeToJsonSchema.biMaxToJsonSchema(rawSchemas,variableObjWithMult, objArrs)
       algorithmSchema = JsonSchema.toString  + "\n"
+    } else if(config.runBiMax.equals(util.CMDLineParser.kmeans) || config.runBiMax.equals(util.CMDLineParser.Hierarchical)){
+      // BiMax algorithm
+      val k = 6
+
+      val rawSchemas: Map[AttributeName,Types.DisjointNodes] = featureVectors.map(x => {
+        x._2 match {
+          case Left(l) =>
+            //Type mismatch. Required: String, found: mutable.HashMap[Map[AttributeName, mutable.Set[JsonExplorerType]], Int]
+            //Type mismatch. Required: String, found: mutable.HashMap[AttributeName, (mutable.Set[JsonExplorerType], Int)]
+            if(x._1.isEmpty) { // only do k-means on root to give it the best chance
+              (x._1,Exec.Algorithms.toDisjointNodes(l),true)
+            } else {
+              val attributeMap: mutable.HashMap[AttributeName, (mutable.Set[JsonExplorerType], Int)] = mutable.HashMap[AttributeName, (mutable.Set[JsonExplorerType], Int)]()
+              l.foreach{case(row,count) =>
+                row.foreach{case(name,types) => {
+                  attributeMap.get(name) match {
+                    case Some(attributeStats) =>
+                      types.foreach(typ => {
+                        if(!attributeStats._1.contains(typ))
+                          attributeStats._1.add(typ)
+                      })
+                      attributeMap.put(name,(attributeStats._1,attributeStats._2+count))
+                    case None =>
+                      attributeMap.put(name,(types,count))
+                  }
+                }}
+              }
+              (x._1,
+                mutable.Seq(mutable.Seq(
+                  BiMaxNode(Set[AttributeName](),Map[AttributeName,mutable.Set[JsonExplorerType]](),0,attributeMap.map(x => (Map[AttributeName,mutable.Set[JsonExplorerType]]((x._1,x._2._1)),x._2._2)).toList.to[mutable.ListBuffer])
+                )), false // flatten non-root
+              )
+            }
+          case Right(r) =>
+            (x._1,
+              mutable.Seq(mutable.Seq(
+                BiMaxNode(Set[AttributeName](),Map[AttributeName,mutable.Set[JsonExplorerType]](),0,r.map(x => (Map[AttributeName,mutable.Set[JsonExplorerType]]((x._1,x._2._1)),x._2._2)).toList.to[mutable.ListBuffer])
+              )), false // flatten var_objects
+            )
+        }
+
+      })
+        .map(x => if (x._3) (x._1,
+          if(config.runBiMax.equals(util.CMDLineParser.kmeans)) Exec.Algorithms.runKMeans(config.spark.sparkContext,x._2,k) else Exec.Algorithms.runHierachical(config.spark.sparkContext,x._2,k)
+        ) else (x._1,x._2)).toMap
+
+      //TODO track basic types from raw schemas
+
+      // combine subset types for each attribute
+      val mergedSchemas:  Map[AttributeName,DisjointNodes] = rawSchemas.map{case(name,djn) => (name,djn.map(bms => bms.map(NodeToJsonSchema.biMaxNodeTypeMerger(_))))}
+
+      val variableObjWithMult: Map[AttributeName,(mutable.Set[JsonExplorerType],Int)] = variableObjs
+        .map(varObjName => {val m = mergedSchemas
+          .map(djn => { val d = djn._2
+            .flatMap(possibleSchemas => possibleSchemas
+              .map(z => {
+                val first = if (z.multiplicity > 0) z.types.get(varObjName) match {case Some(v) => (v,z.multiplicity) case None => (mutable.Set[JsonExplorerType](),0)} else (mutable.Set[JsonExplorerType](),0)
+                val sec = if(z.subsets.nonEmpty) z.subsets.map(sub => if (sub._1.contains(varObjName)) (sub._1.get(varObjName).get,sub._2) else (mutable.Set[JsonExplorerType](),0)).reduce((l:(mutable.Set[JsonExplorerType],Int),r:(mutable.Set[JsonExplorerType],Int)) => (l._1 ++ r._1, l._2 + r._2))
+                else (mutable.Set[JsonExplorerType](),0)
+                (first._1 ++ sec._1,first._2+sec._2)
+              })
+            )
+            d
+          })
+
+          (varObjName,m.flatten.reduce((l,r) => (l._1 ++ r._1, l._2 + r._2)))
+        }).toMap
+
+
+      def reduceTypes(s: mutable.Set[JsonExplorerType]): mutable.Set[JsonExplorerType] = {
+        if(s.size == 1)
+          return s
+        val typesWithoutEmpty = s.filter( t => if (t.equals(JE_Empty_Object) && s.contains(JE_Object) || (t.equals(JE_Empty_Array) && s.contains(JE_Array))) false else true)
+        val types = typesWithoutEmpty.filter( t => if (t.equals(JE_Null) && typesWithoutEmpty.size == 2) false else true)
+        return types
+      }
+
+      val reducedMergedSchemas = mergedSchemas.map(x => (x._1,x._2.map(y => y.map(z => {
+        BiMaxNode(z.schema,
+          z.types.map(r => (r._1, reduceTypes(r._2))),
+          z.multiplicity,
+          z.subsets
+        )
+
+      }))))
+      //util.JsonSchemaToJsonTable.convert(reducedMergedSchemas, variableObjs, objArrs)
+      val JsonSchema: util.JsonSchema.JSS = util.NodeToJsonSchema.biMaxToJsonSchema(mergedSchemas,variableObjWithMult, objArrs)
+      algorithmSchema = JsonSchema.toString  + "\n"
+    }
+    else if(config.runBiMax.equals(util.CMDLineParser.Flat)){
+      // BiMax algorithm
+      val rawSchemas: Map[AttributeName,Types.DisjointNodes] = featureVectors.map(x => {
+        x._2 match {
+          case Left(l) =>
+              val attributeMap: mutable.HashMap[AttributeName, (mutable.Set[JsonExplorerType], Int)] = mutable.HashMap[AttributeName, (mutable.Set[JsonExplorerType], Int)]()
+              l.foreach{case(row,count) =>
+                row.foreach{case(name,types) => {
+                  attributeMap.get(name) match {
+                    case Some(attributeStats) =>
+                      types.foreach(typ => {
+                        if(!attributeStats._1.contains(typ))
+                          attributeStats._1.add(typ)
+                      })
+                      attributeMap.put(name,(attributeStats._1,attributeStats._2+count))
+                    case None =>
+                      attributeMap.put(name,(types,count))
+                  }
+                }}
+              }
+              (x._1,
+                mutable.Seq(mutable.Seq(
+                  BiMaxNode(Set[AttributeName](),Map[AttributeName,mutable.Set[JsonExplorerType]](),0,attributeMap.map(x => (Map[AttributeName,mutable.Set[JsonExplorerType]]((x._1,x._2._1)),x._2._2)).toList.to[mutable.ListBuffer])
+                )), false // flatten non-root
+              )
+
+          case Right(r) =>
+            (x._1,
+              mutable.Seq(mutable.Seq(
+                BiMaxNode(Set[AttributeName](),Map[AttributeName,mutable.Set[JsonExplorerType]](),0,r.map(x => (Map[AttributeName,mutable.Set[JsonExplorerType]]((x._1,x._2._1)),x._2._2)).toList.to[mutable.ListBuffer])
+              )), false // flatten var_objects
+            )
+        }
+
+      })
+        .map(x => if (x._3) (x._1,Exec.Algorithms.runKMeans(config.spark.sparkContext,x._2,10)) else (x._1,x._2)).toMap
+
+      //TODO track basic types from raw schemas
+
+      // combine subset types for each attribute
+      val mergedSchemas:  Map[AttributeName,DisjointNodes] = rawSchemas.map{case(name,djn) => (name,djn.map(bms => bms.map(NodeToJsonSchema.biMaxNodeTypeMerger(_))))}
+
+      val variableObjWithMult: Map[AttributeName,(mutable.Set[JsonExplorerType],Int)] = variableObjs
+        .map(varObjName => {val m = mergedSchemas
+          .map(djn => { val d = djn._2
+            .flatMap(possibleSchemas => possibleSchemas
+              .map(z => {
+                val first = if (z.multiplicity > 0) z.types.get(varObjName) match {case Some(v) => (v,z.multiplicity) case None => (mutable.Set[JsonExplorerType](),0)} else (mutable.Set[JsonExplorerType](),0)
+                val sec = if(z.subsets.nonEmpty) z.subsets.map(sub => if (sub._1.contains(varObjName)) (sub._1.get(varObjName).get,sub._2) else (mutable.Set[JsonExplorerType](),0)).reduce((l:(mutable.Set[JsonExplorerType],Int),r:(mutable.Set[JsonExplorerType],Int)) => (l._1 ++ r._1, l._2 + r._2))
+                else (mutable.Set[JsonExplorerType](),0)
+                (first._1 ++ sec._1,first._2+sec._2)
+              })
+            )
+            d
+          })
+
+          (varObjName,m.flatten.reduce((l,r) => (l._1 ++ r._1, l._2 + r._2)))
+        }).toMap
+
+
+      def reduceTypes(s: mutable.Set[JsonExplorerType]): mutable.Set[JsonExplorerType] = {
+        if(s.size == 1)
+          return s
+        val typesWithoutEmpty = s.filter( t => if (t.equals(JE_Empty_Object) && s.contains(JE_Object) || (t.equals(JE_Empty_Array) && s.contains(JE_Array))) false else true)
+        val types = typesWithoutEmpty.filter( t => if (t.equals(JE_Null) && typesWithoutEmpty.size == 2) false else true)
+        return types
+      }
+
+      val reducedMergedSchemas = mergedSchemas.map(x => (x._1,x._2.map(y => y.map(z => {
+        BiMaxNode(z.schema,
+          z.types.map(r => (r._1, reduceTypes(r._2))),
+          z.multiplicity,
+          z.subsets
+        )
+
+      }))))
+      //util.JsonSchemaToJsonTable.convert(reducedMergedSchemas, variableObjs, objArrs)
+      val JsonSchema: util.JsonSchema.JSS = util.NodeToJsonSchema.biMaxToJsonSchema(mergedSchemas,variableObjWithMult, objArrs)
+      algorithmSchema = JsonSchema.toString  + "\n"
     } else {
       throw new Exception("Unknown Merge algorithm choice")
     }
@@ -201,33 +367,23 @@ object SparkMain {
 
 
     //log += LogOutput("FVTime",fvRunTime.toString,"FV Creation Took: "," ms")
-    log += LogOutput("TotalTime",(endTime - startTime).toString,"Total execution time: ", " ms")
-    log += LogOutput("TrainPercent",config.trainPercent.toString,"TrainPercent: ")
-    log += LogOutput("ValidationSize",config.validationSize.toString,"ValidationSize: ")
-    log += LogOutput("Algorithm",if(config.runBiMax.equals(util.CMDLineParser.BiMax)) "bimax" else if(config.runBiMax.equals(util.CMDLineParser.Subset)) "subset" else if(config.runBiMax.equals(util.CMDLineParser.Verbose)) "verbose" else "unknown","Algorithm: ")
-    log += LogOutput("Seed",config.seed match {
+    Log.add("total time",(endTime - startTime).toString)
+    Log.add("train percent",config.trainPercent.toString)
+    Log.add("validation size",config.validationSize.toString)
+    Log.add("algorithm",config.runBiMax.toString())
+    Log.add("seed",config.seed match {
       case Some(i) => i.toString
-      case None => "None"},"Seed: ")
+      case None => "None"})
 
-    config.spark.conf.getAll.foreach{case(k,v) => log += LogOutput(k,v,k+": ")}
-    log += LogOutput("kse",config.kse.toString,"KSE: ")
+    config.spark.conf.getAll.foreach{case(k,v) => Log.add(k,v)}
+    Log.add("KSE",config.kse.toString)
 
 //    println(SizeEstimator.estimate(featureVectors.filter(x=> x._1.isEmpty || attributeMap.get(x._1).get.`type`.contains(JE_Var_Object))))
 //    println(SizeEstimator.estimate(featureVectors))
 
+    Log.writeLog(config.logFileName, if(config.writeJsonSchema) algorithmSchema else "")
+    Log.printLog()
 
-
-    val logFile = new FileWriter(config.logFileName,true)
-    logFile.write("{" + log.map(_.toJson).mkString(",") + "}\n")
-    if(config.writeJsonSchema) logFile.write(algorithmSchema)
-    logFile.close()
-    println(log.map(_.toString).mkString("\n"))
-
-  }
-
-  case class LogOutput(label:String, value:String, printPrefix:String, printSuffix:String = ""){
-    override def toString: String = s"""${printPrefix}${value}${printSuffix}"""
-    def toJson: String = s""""${label}":"${value}""""
   }
 
 }
@@ -245,3 +401,4 @@ object SparkMain {
 // Synapse: 147847
 // Twitter: 808,442
 // NYT2019: 69116
+// WikiData: 16980683 -- 1700614

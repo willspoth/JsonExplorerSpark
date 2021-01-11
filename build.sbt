@@ -1,24 +1,24 @@
-name := "JsonExplorer"
+name := "JsonExtractor"
 
 version := "0.1"
 
 scalaVersion := "2.11.8"
 
-//Compile/mainClass := Some("JsonExplorer.SparkMain")
+Compile/mainClass := Some("SparkMain")
 
 
 libraryDependencies ++= Seq(
   // Spark
   "org.apache.spark" %% "spark-core" % "2.3.4",
-  "org.apache.spark" %% "spark-sql" % "2.3.4"//,
-  //"org.apache.spark" %% "spark-mllib" % "2.3.4" % "runtime"
-
+  "org.apache.spark" %% "spark-sql" % "2.3.4",
+  "org.apache.spark" %% "spark-mllib" % "2.3.4",
+  "org.apache.spark" %% "spark-sql" % "2.3.4"
 )
 
 test in assembly := {}
 //assemblyOption in assembly := (assemblyOption in assembly).value.copy(cacheUnzip = false)
-assemblyJarName in assembly := "JsonExplorer.jar"
-mainClass in assembly := Some("JsonExplorer.Main")
+assemblyJarName in assembly := "JsonExtractor.jar"
+mainClass in assembly := Some("SparkMain")
 val nettyMeta = ".*META-INF\\/io\\.netty.*".r
 assemblyMergeStrategy in assembly := {
   case PathList("org","aopalliance", xs @ _*) => MergeStrategy.last

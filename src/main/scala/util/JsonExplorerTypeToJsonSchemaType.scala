@@ -1,6 +1,6 @@
 package util
 
-import Explorer.{JE_Array, JE_Boolean, JE_Empty_Array, JE_Empty_Object, JE_Null, JE_Numeric, JE_Obj_Array, JE_Object, JE_String, JE_Tuple, JE_Var_Object, JsonExplorerType}
+import Extractor.{JE_Array, JE_Boolean, JE_Empty_Array, JE_Empty_Object, JE_Null, JE_Numeric, JE_Obj_Array, JE_Object, JE_String, JE_Tuple, JE_Var_Object, JsonExplorerType}
 import util.JsonSchema._
 
 object JsonExplorerTypeToJsonSchemaType {

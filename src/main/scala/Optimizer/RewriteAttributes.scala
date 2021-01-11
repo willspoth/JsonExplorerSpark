@@ -1,7 +1,7 @@
 package Optimizer
 
-import Explorer.{Attribute, AttributeTree, GenericTree, JE_Array, JE_Empty_Array, JE_Empty_Object, JE_Null, JE_Obj_Array, JE_Object, JE_Tuple, JE_Var_Object, JsonExplorerType, Star, Types}
-import Explorer.Types.{AttributeName, BiMaxNode}
+import Extractor.{Attribute, AttributeTree, GenericTree, JE_Array, JE_Empty_Array, JE_Empty_Object, JE_Null, JE_Obj_Array, JE_Object, JE_Tuple, JE_Var_Object, JsonExplorerType, Star, Types}
+import Extractor.Types.{AttributeName, BiMaxNode}
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -48,8 +48,6 @@ object RewriteAttributes {
                             ): Attribute =
   {
     if(!attributeTree.attribute.objectMarginalKeySpaceEntropy.equals(None)) {
-      if ((attributeTree.attribute.objectMarginalKeySpaceEntropy.get > keySpaceThreshold) != (attributeTree.attribute.objectJointKeySpaceEntropy.get > keySpaceThreshold))
-        println("KSE difference between marginal and joint exists and effects choice for attribute " + Types.nameToString(attributeTree.attribute.name) + " marginal: " + attributeTree.attribute.objectMarginalKeySpaceEntropy.get.toString + " joint: " + attributeTree.attribute.objectJointKeySpaceEntropy.get.toString)
       if (((attributeTree.attribute.objectMarginalKeySpaceEntropy.get >= keySpaceThreshold) && (getChildrenTypes(attributeTree).filterNot(_.equals(JE_Null)).filter(_.isBasic()).size <= 1)) && keySpaceThreshold > 0.0) {
         return updateAttributeType(attributeTree.attribute, upgradeType(attributeTree.attribute.`type`, JE_Object, JE_Var_Object))
       }
@@ -190,39 +188,6 @@ object RewriteAttributes {
     attributeTree
   }
 
-//  def nullOut[T](left: T, right: T, merge: (T,T) => T = {throw new Exception("Unimplemented merge called")}): T = {
-//    if(left == null && right == null){
-//      return left
-//    } else if (left == null){
-//      return right
-//    } else if (right == null){
-//      return left
-//    } else {
-//      return merge(left,right)
-//    }
-//  }
-//
-//  def mergeAttributes(a1: Attribute, a2: Attribute): Attribute = {
-//    if (a1.name != a2.name)
-//      throw new Exception("merging attribute trees with different names")
-//
-//    new Attribute(
-//      a1.name,
-//      nullOut[scala.collection.mutable.Set[JsonExplorerType]](a1.`type`, a2.`type`,(x:scala.collection.mutable.Set[JsonExplorerType],y:scala.collection.mutable.Set[JsonExplorerType])=>x++y),
-//
-//      a1.multiplicity + a2.multiplicity
-//    )
-//  }
-//
-//  def mergeAttributeTrees(t1: AttributeTree, t2: AttributeTree): AttributeTree = {
-//    if(t1.name != t2.name)
-//      throw new Exception("merging attribute trees with different names")
-//    val mergedAttributes = mergeAttributes(t1.attribute,t2.attribute)
-//    val mergedChildren = new mutable.HashMap[Any,AttributeTree]()
-//    t1.children.foreach(x => mergedChildren.put(x._1,x._2))
-//    t2.children.foreach(x => mergedChildren.put(x._1,x._2))
-//    return new AttributeTree(t1.name,mergedChildren,mergedAttributes)
-//  }
 
   def attributeTreeToAttributeMap(attributeTree: AttributeTree): mutable.HashMap[AttributeName,Attribute] = {
     val attributeMap = mutable.HashMap[AttributeName,Attribute]()
@@ -230,16 +195,7 @@ object RewriteAttributes {
       if(attributeTree.attribute != null) {
         attributeMap.put(attributeTree.attribute.name, attributeTree.attribute)
       }
-//      // check children for names with numbers and coalesce them
-//      val arrayChildren: AttributeTree = new AttributeTree( // merge children that are array elements
-//        Star,
-//        attributeTree.children.filter(_._1.isInstanceOf[Int]).foldLeft(mutable.HashMap[Any,AttributeTree]()){case(children,v) => {
-//          v._2.children.foreach(x => children.put(x._1,x._2))
-//          children
-//        }}, // combine all children
-//        attributeTree.children.filter(_._1.isInstanceOf[Int]).foldLeft(new Attribute()){case(attr_acc,v) => {attr_acc}}
-//      )
-//      explode(arrayChildren)
+
       attributeTree.children.foreach(x => explode(x._2))
     }
     explode(attributeTree)

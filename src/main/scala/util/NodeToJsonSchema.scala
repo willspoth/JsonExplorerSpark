@@ -1,7 +1,7 @@
 package util
 
-import Explorer.{Attribute, AttributeTree, GenericTree, JE_Array, JE_Empty_Array, JE_Empty_Object, JE_Obj_Array, JE_Object, JE_Var_Object, JsonExplorerType, Star, Types}
-import Explorer.Types.{AttributeName, AttributeNodelet, BiMaxNode, BiMaxStruct}
+import Extractor.{Attribute, AttributeTree, GenericTree, JE_Array, JE_Empty_Array, JE_Empty_Object, JE_Null, JE_Obj_Array, JE_Object, JE_Var_Object, JsonExplorerType, Star, Types}
+import Extractor.Types.{AttributeName, AttributeNodelet, BiMaxNode, BiMaxStruct}
 import Optimizer.RewriteAttributes
 import util.JsonSchema.{JSA_additionalProperties, JSA_anyOf, JSA_description, JSA_items, JSA_maxItems, JSA_maxProperties, JSA_oneOf, JSA_properties, JSA_required, JSA_type, JSS, JsonSchemaStructure}
 
@@ -106,8 +106,16 @@ object NodeToJsonSchema {
         if(tree.payload == null)
           payload = pastPayload
 
-        val anyOf = payload.`type`.filter( t => if (t.equals(JE_Empty_Object) && payload.`type`.contains(JE_Object) || (t.equals(JE_Empty_Array) && payload.`type`.contains(JE_Array)) ) false else true)
-          .toList.map(t => {
+
+        // CHANGED
+        val typesWithoutEmpty = payload.`type`.filter( t => if (t.equals(JE_Empty_Object) && payload.`type`.contains(JE_Object) || (t.equals(JE_Empty_Array) && payload.`type`.contains(JE_Array))) false else true)
+        val types = payload.`type`.filter( t => if (t.equals(JE_Null) && typesWithoutEmpty.size == 2) false else true)
+
+//        if(types.size > 1){
+//          println("uhhhhh")
+//        }
+
+        val anyOf = types.toList.map(t => {
           val seq: ListBuffer[JsonSchemaStructure] = ListBuffer(
             JSA_type(JsonExplorerTypeToJsonSchemaType.convert(t))
           )
