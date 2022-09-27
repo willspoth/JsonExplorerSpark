@@ -76,7 +76,7 @@ object JsonSchema {
     override def toString: String = s""""maxItems":${value.toString}"""
   }
   case class JSA_maxProperties(value: Double) extends JsonSchemaStructure {
-    override def toString: String = s""""maxItems":${value.toString}"""
+    override def toString: String = s""""maxProperties":${value.toString}"""
   }
   case class JSA_additionalProperties(value: Boolean) extends JsonSchemaStructure {
     override def toString: String = s""""additionalProperties":${value.toString}"""
